@@ -340,6 +340,23 @@ permissions: [browser:render]
 	require.Error(t, err)
 }
 
+func TestPackageAllowsUnsetOptionalModuleAssets(t *testing.T) {
+	manifest := `api_version: 1
+id: io.example.syntax
+name: Syntax
+version: 1.0.0
+modules:
+  - type: markdown-syntax
+    id: grammar
+    syntax: strikethrough
+permissions: []
+`
+
+	pkg, err := Read(testArchiveWithoutWASM(t, manifest))
+	require.NoError(t, err)
+	assert.Empty(t, pkg.AssetNames())
+}
+
 func TestIconResourceModule(t *testing.T) {
 	manifest := `api_version: 1
 id: io.example.icons

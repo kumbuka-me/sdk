@@ -293,6 +293,9 @@ func read(data []byte) (*Package, error) {
 
 	for _, module := range manifest.Modules {
 		for _, name := range []string{module.JavaScript, module.CSS, module.Asset} {
+			if name == "" {
+				continue
+			}
 			data, ok := assets[name]
 			if !ok {
 				return nil, fmt.Errorf("missing module asset %s", name)

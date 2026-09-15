@@ -339,3 +339,38 @@ permissions: [browser:render]
 	_, err = Read(testArchive(t, browser, archiveEntry{"assets/plugin.js", []byte("globalThis.kumbukaPlugin={}"), 0644}))
 	require.Error(t, err)
 }
+
+func TestIconResourceModule(t *testing.T) {
+	manifest := `api_version: 1
+id: io.example.icons
+name: Icons
+version: 1.0.0
+modules:
+  - type: icon-resource
+    id: brands
+    name: Brand Icons
+    asset: icons.json
+permissions: []
+`
+	asset := archiveEntry{"assets/icons.json", []byte(`{"format":1,"icons":[{"name":"example-brand","label":"Example","view_box":"0 0 24 24","paths":["M0 0H24V24H0z"]}]}`), 0644}
+	pkg, err := Read(testArchiveWithoutWASM(t, manifest, asset))
+	require.NoError(t, err)
+	require.Len(t, pkg.Manifest().Modules, 1)
+	assert.Equal(t, "icon-resource", pkg.Manifest().Modules[0].Type)
+	assert.Equal(t, "Brand Icons", pkg.Manifest().Modules[0].Name)
+	assert.Equal(t, "icons.json", pkg.Manifest().Modules[0].Asset)
+	assert.False(t, pkg.Manifest().RequiresWASM())
+
+	for _, invalid := range []string{
+		strings.ReplaceAll(manifest, "name: Brand Icons", "name: ''"),
+		strings.ReplaceAll(manifest, "asset: icons.json", "asset: ../icons.json"),
+		strings.ReplaceAll(manifest, "asset: icons.json", "asset: icons.svg"),
+		strings.ReplaceAll(manifest, "type: icon-resource", "type: content-style"),
+	} {
+		_, err := Read(testArchiveWithoutWASM(t, invalid, asset))
+		require.Error(t, err, invalid)
+	}
+
+	_, err = Read(testArchiveWithoutWASM(t, manifest))
+	require.ErrorContains(t, err, "missing module asset icons.json")
+}

@@ -95,3 +95,31 @@ func TestExecutablePluginUsesContainingGoModule(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, manifest.RequiresWASM())
 }
+
+func TestValidationRequiresDeclaredIconResourceAsset(t *testing.T) {
+	directory := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(directory, "assets"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "README.md"), []byte("# Icons\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "plugin.yaml"), []byte(`api_version: 1
+id: io.example.icons
+name: Icons
+version: 1.0.0
+modules:
+  - type: icon-resource
+    id: brands
+    name: Brand Icons
+    asset: icons.json
+permissions: []
+`), 0o600))
+
+	_, err := Validate(directory)
+	require.Error(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "assets", "icons.json"), []byte(`{"format":1,"icons":[{"name":"example-brand","label":"Example","view_box":"0 0 24 24","paths":["M0 0H24V24H0z"]}]}`), 0o600))
+	_, err = Validate(directory)
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "assets", "icons.json"), []byte(`{"format":1,"icons":[]}`), 0o600))
+	_, err = Validate(directory)
+	require.Error(t, err)
+}

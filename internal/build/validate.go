@@ -62,10 +62,17 @@ func Validate(directory string) (pluginpackage.Manifest, error) {
 		return empty, err
 	}
 	for _, module := range manifest.Modules {
-		for _, name := range []string{module.JavaScript, module.CSS} {
-			if name != "" {
-				if _, err := readRegular(filepath.Join(assets, filepath.FromSlash(name)), pluginpackage.MaxAssetBytes); err != nil {
-					return empty, fmt.Errorf("module %s asset: %w", module.ID, err)
+		for _, name := range []string{module.JavaScript, module.CSS, module.Asset} {
+			if name == "" {
+				continue
+			}
+			data, err := readRegular(filepath.Join(assets, filepath.FromSlash(name)), pluginpackage.MaxAssetBytes)
+			if err != nil {
+				return empty, fmt.Errorf("module %s asset: %w", module.ID, err)
+			}
+			if module.Type == "icon-resource" && name == module.Asset {
+				if _, err := pluginpackage.ParseIconResource(data); err != nil {
+					return empty, fmt.Errorf("module %s icon resource: %w", module.ID, err)
 				}
 			}
 		}

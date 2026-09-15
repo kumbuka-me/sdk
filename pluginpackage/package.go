@@ -120,6 +120,8 @@ type Module struct {
 	Requires []string `yaml:"requires,omitempty"`
 	// CSS names the stylesheet asset used by browser, content-style, or code-highlighter modules.
 	CSS string `yaml:"css,omitempty"`
+	// Asset names the data asset owned by declarative resource modules.
+	Asset string `yaml:"asset,omitempty"`
 	// Policy selects a host rendering policy for render-policy modules.
 	Policy string `yaml:"policy,omitempty"`
 	// Priority orders content preprocessors. Lower values run first.
@@ -290,10 +292,14 @@ func read(data []byte) (*Package, error) {
 	}
 
 	for _, module := range manifest.Modules {
-		for _, name := range []string{module.JavaScript, module.CSS} {
-			if name != "" {
-				if _, ok := assets[name]; !ok {
-					return nil, fmt.Errorf("missing browser asset %s", name)
+		for _, name := range []string{module.JavaScript, module.CSS, module.Asset} {
+			data, ok := assets[name]
+			if !ok {
+				return nil, fmt.Errorf("missing module asset %s", name)
+			}
+			if module.Type == "icon-resource" && name == module.Asset {
+				if _, err := ParseIconResource(data); err != nil {
+					return nil, fmt.Errorf("icon resource %s: %w", module.ID, err)
 				}
 			}
 		}
@@ -483,6 +489,8 @@ func validModule(m Module) bool {
 		return validEditorCompletionModule(m)
 	case "editor-insert":
 		return validEditorInsertModule(m)
+	case "icon-resource":
+		return validIconResourceModule(m)
 	default:
 		return false
 	}
@@ -497,6 +505,9 @@ func validModuleFields(m Module) bool {
 		return false
 	}
 	if m.Type != "browser-module" && m.Type != "content-style" && m.Type != "code-highlighter" && m.CSS != "" {
+		return false
+	}
+	if m.Type != "icon-resource" && m.Asset != "" {
 		return false
 	}
 	if m.Type != "markdown-syntax" && m.Syntax != "" {
@@ -699,6 +710,13 @@ func validEditorCompletionModule(m Module) bool {
 func validEditorInsertModule(m Module) bool {
 	return m.Stage == "" && m.Capability == "" && strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 &&
 		len(m.Description) <= 1024 && len(m.Markdown) > 0 && len(m.Markdown) <= 4096
+}
+
+// validIconResourceModule validates one declarative icon-pack contribution.
+func validIconResourceModule(m Module) bool {
+	name := strings.TrimSpace(m.Name)
+	return m.Stage == "" && m.Capability == "" && validIconText(name, 128) &&
+		validPath(m.Asset) && strings.HasSuffix(m.Asset, ".json")
 }
 
 // validateModuleReferences checks relationships between declarative modules in one package.

@@ -80,6 +80,21 @@ func TestTypedCapabilities(t *testing.T) {
 				t.Fatal("unexpected revision limit")
 			}
 			*result.(*RevisionHistory) = RevisionHistory{Count: 2, Revisions: []Revision{{Number: 2}}}
+		case "pages.recent":
+			if params.(PageListQuery).Limit != 3 {
+				t.Fatal("unexpected recent limit")
+			}
+			*result.(*[]Page) = []Page{{Slug: "recent"}}
+		case "pages.recent-viewed":
+			*result.(*[]Page) = []Page{{Slug: "viewed"}}
+		case "pages.favorites":
+			*result.(*[]Page) = []Page{{Slug: "favorite"}}
+		case "pages.popular":
+			*result.(*[]Page) = []Page{{Slug: "popular"}}
+		case "pages.recent-edits":
+			*result.(*[]RecentEdit) = []RecentEdit{{Page: Page{Slug: "edited"}, RevisionMessage: "Changed"}}
+		case "drafts.list":
+			*result.(*[]PageDraft) = []PageDraft{{Key: "page:1", PageID: 1, PageSlug: "draft", Title: "Draft"}}
 		case "plugin.settings.read":
 			*result.(*StoredValue) = StoredValue{Found: true, Value: []byte{}}
 		case "plugin.storage.read":
@@ -107,6 +122,30 @@ func TestTypedCapabilities(t *testing.T) {
 	if err != nil || history.Count != 2 || len(history.Revisions) != 1 {
 		t.Fatalf("revisions: %+v %v", history, err)
 	}
+	recent, err := client.Pages().Recent(3)
+	if err != nil || len(recent) != 1 || recent[0].Slug != "recent" {
+		t.Fatalf("recent: %+v %v", recent, err)
+	}
+	viewed, err := client.Pages().RecentViewed(4)
+	if err != nil || len(viewed) != 1 || viewed[0].Slug != "viewed" {
+		t.Fatalf("recent viewed: %+v %v", viewed, err)
+	}
+	favorites, err := client.Pages().Favorites(5)
+	if err != nil || len(favorites) != 1 || favorites[0].Slug != "favorite" {
+		t.Fatalf("favorites: %+v %v", favorites, err)
+	}
+	popular, err := client.Pages().Popular(6)
+	if err != nil || len(popular) != 1 || popular[0].Slug != "popular" {
+		t.Fatalf("popular: %+v %v", popular, err)
+	}
+	edits, err := client.Pages().RecentEdited(7)
+	if err != nil || len(edits) != 1 || edits[0].RevisionMessage != "Changed" {
+		t.Fatalf("recent edits: %+v %v", edits, err)
+	}
+	drafts, err := client.Drafts().List(6)
+	if err != nil || len(drafts) != 1 || drafts[0].Key != "page:1" {
+		t.Fatalf("drafts: %+v %v", drafts, err)
+	}
 	value, err := client.Settings().Get("empty")
 	if err != nil || !value.Found {
 		t.Fatalf("empty: %+v %v", value, err)
@@ -129,5 +168,27 @@ func TestInvalidResultUsesErrorEnvelope(t *testing.T) {
 		if err := json.Unmarshal(encodeResult(result), &envelope); err != nil || envelope.Error == "" {
 			t.Fatalf("invalid output escaped: %+v %v", envelope, err)
 		}
+	}
+}
+
+func TestDashboardCapabilityPermissions(t *testing.T) {
+	for _, method := range []string{"pages.recent", "pages.popular"} {
+		permission, ok := PermissionFor(method)
+		if !ok || permission != "pages:read" {
+			t.Fatalf("%s: %q %t", method, permission, ok)
+		}
+	}
+	for _, method := range []string{"pages.recent-viewed", "pages.favorites", "pages.recent-edits"} {
+		permission, ok := PermissionFor(method)
+		if !ok || permission != "activity:read" {
+			t.Fatalf("%s: %q %t", method, permission, ok)
+		}
+	}
+	if !ValidPermission("activity:read") {
+		t.Fatal("activity:read must be a valid permission")
+	}
+	permission, ok := PermissionFor("drafts.list")
+	if !ok || permission != "drafts:read" || !ValidPermission("drafts:read") {
+		t.Fatalf("drafts permission: %q %t", permission, ok)
 	}
 }

@@ -108,6 +108,10 @@ type Module struct {
 	Stage string `yaml:"stage,omitempty"`
 	// Surface selects the host placement for widget modules.
 	Surface string `yaml:"surface,omitempty"`
+	// Width is an optional host layout hint for widget modules.
+	Width string `yaml:"width,omitempty"`
+	// Order controls deterministic placement among widgets on the same surface.
+	Order int `yaml:"order,omitempty"`
 	// Name is the human-readable name.
 	Name string `yaml:"name,omitempty"`
 	// Description explains the module to administrators when applicable.
@@ -521,7 +525,7 @@ func validModuleFields(m Module) bool {
 	if m.Type != "browser-module" && m.JavaScript != "" {
 		return false
 	}
-	if m.Type != "widget" && m.Surface != "" {
+	if m.Type != "widget" && (m.Surface != "" || m.Width != "" || m.Order != 0) {
 		return false
 	}
 	if m.Type != "browser-module" && m.Type != "content-style" && m.Type != "code-highlighter" && m.CSS != "" {
@@ -757,7 +761,8 @@ func validEditorInsertModule(m Module) bool {
 
 // validWidgetModule validates one executable widget contribution.
 func validWidgetModule(m Module) bool {
-	return m.Stage == "" && m.Name == "" && m.Description == "" && m.Capability == "" && api.ValidWidgetSurface(m.Surface)
+	return m.Stage == "" && m.Name == "" && m.Description == "" && m.Capability == "" &&
+		api.ValidWidgetSurface(m.Surface) && api.ValidWidgetWidth(m.Width) && m.Order >= -1000 && m.Order <= 1000
 }
 
 // validIconResourceModule validates one declarative icon-pack contribution.

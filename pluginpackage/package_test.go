@@ -446,6 +446,8 @@ modules:
   - type: widget
     id: details
     surface: page.details
+    width: wide
+    order: 20
 permissions:
   - pages:read
 `
@@ -453,12 +455,16 @@ permissions:
 	require.NoError(t, err)
 	require.Len(t, pkg.Manifest().Modules, 1)
 	assert.Equal(t, "page.details", pkg.Manifest().Modules[0].Surface)
+	assert.Equal(t, "wide", pkg.Manifest().Modules[0].Width)
+	assert.Equal(t, 20, pkg.Manifest().Modules[0].Order)
 	assert.True(t, pkg.Manifest().RequiresWASM())
 
 	for _, invalid := range []string{
 		strings.Replace(manifest, "page.details", "unknown", 1),
 		strings.Replace(manifest, "    surface: page.details\n", "", 1),
 		strings.Replace(manifest, "    surface: page.details", "    surface: page.details\n    stage: postprocess", 1),
+		strings.Replace(manifest, "width: wide", "width: huge", 1),
+		strings.Replace(manifest, "order: 20", "order: 1001", 1),
 	} {
 		_, err := Read(testArchive(t, invalid))
 		require.Error(t, err)

@@ -20,6 +20,9 @@ func NewClient(transport Transport) Client {
 // Pages returns the host page capabilities.
 func Pages() PageClient { return NewClient(nil).Pages() }
 
+// Drafts returns private draft metadata for the current viewer.
+func Drafts() DraftClient { return NewClient(nil).Drafts() }
+
 // Settings returns this plugin's settings namespace.
 func Settings() Values { return NewClient(nil).Settings() }
 
@@ -37,6 +40,9 @@ func Icon(name string, size int) (string, error) { return NewClient(nil).Icon(na
 
 // Pages returns page operations on this client.
 func (c Client) Pages() PageClient { return PageClient{c} }
+
+// Drafts returns private draft operations on this client.
+func (c Client) Drafts() DraftClient { return DraftClient{c} }
 
 // Settings returns the calling plugin's settings namespace.
 func (c Client) Settings() Values { return Values{c, "plugin.settings"} }
@@ -97,10 +103,55 @@ func (p PageClient) Revisions(query RevisionQuery) (RevisionHistory, error) {
 	return result, err
 }
 
+// Recent returns the newest authorized pages.
+func (p PageClient) Recent(limit int) ([]Page, error) {
+	var result []Page
+	err := p.client.call("pages.recent", PageListQuery{Limit: limit}, &result)
+	return result, err
+}
+
+// RecentViewed returns pages most recently viewed by the current viewer.
+func (p PageClient) RecentViewed(limit int) ([]Page, error) {
+	var result []Page
+	err := p.client.call("pages.recent-viewed", PageListQuery{Limit: limit}, &result)
+	return result, err
+}
+
+// Favorites returns pages favorited by the current viewer.
+func (p PageClient) Favorites(limit int) ([]Page, error) {
+	var result []Page
+	err := p.client.call("pages.favorites", PageListQuery{Limit: limit}, &result)
+	return result, err
+}
+
+// Popular returns the most viewed authorized pages.
+func (p PageClient) Popular(limit int) ([]Page, error) {
+	var result []Page
+	err := p.client.call("pages.popular", PageListQuery{Limit: limit}, &result)
+	return result, err
+}
+
+// RecentEdited returns pages most recently edited by the current viewer.
+func (p PageClient) RecentEdited(limit int) ([]RecentEdit, error) {
+	var result []RecentEdit
+	err := p.client.call("pages.recent-edits", PageListQuery{Limit: limit}, &result)
+	return result, err
+}
+
 // Navigation returns the prepared navigation tree.
 func (p PageClient) Navigation() ([]NavigationNode, error) {
 	var result []NavigationNode
 	err := p.client.call("pages.navigation", nil, &result)
+	return result, err
+}
+
+// DraftClient provides access to the current viewer's private draft metadata.
+type DraftClient struct{ client Client }
+
+// List returns bounded private draft metadata without editor form values.
+func (d DraftClient) List(limit int) ([]PageDraft, error) {
+	var result []PageDraft
+	err := d.client.call("drafts.list", PageListQuery{Limit: limit}, &result)
 	return result, err
 }
 

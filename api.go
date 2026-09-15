@@ -36,6 +36,12 @@ type (
 	Page = api.Page
 	// PageQuery is a bounded page search query.
 	PageQuery = api.PageQuery
+	// PageListQuery selects a bounded page/activity list.
+	PageListQuery = api.PageListQuery
+	// RecentEdit is public metadata for one recent edit.
+	RecentEdit = api.RecentEdit
+	// PageDraft is bounded private draft metadata for the current viewer.
+	PageDraft = api.PageDraft
 	// PageRef identifies one page for a capability request.
 	PageRef = api.PageRef
 	// PageContent is authorized Markdown source.
@@ -91,3 +97,6 @@ func RenderPolicyEnabled(features map[string]bool, name string) bool {
 
 // ValidWidgetSurface reports whether surface is a supported widget placement.
 func ValidWidgetSurface(surface string) bool { return api.ValidWidgetSurface(surface) }
+
+// ValidWidgetWidth reports whether width is a supported host layout hint.
+func ValidWidgetWidth(width string) bool { return api.ValidWidgetWidth(width) }

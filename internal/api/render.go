@@ -86,3 +86,13 @@ func ValidWidgetSurface(surface string) bool {
 		return false
 	}
 }
+
+// ValidWidgetWidth reports whether width is a supported host layout hint.
+func ValidWidgetWidth(width string) bool {
+	switch width {
+	case "", "normal", "wide":
+		return true
+	default:
+		return false
+	}
+}

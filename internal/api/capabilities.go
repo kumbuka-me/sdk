@@ -28,6 +28,8 @@ type Page struct {
 	Slug string
 	// Title is the human-readable page title.
 	Title string
+	// Icon is the optional host icon selected for the page.
+	Icon string
 	// Status is the page lifecycle state.
 	Status string
 	// OwnerGroup is the optional human-readable owner group.
@@ -116,6 +118,35 @@ type PageQuery struct {
 	Limit int
 }
 
+// PageListQuery selects a bounded list of pages or activity records.
+type PageListQuery struct {
+	// Limit bounds the number of returned records.
+	Limit int
+}
+
+// RecentEdit describes a page recently edited by the current viewer.
+type RecentEdit struct {
+	Page
+	// RevisionMessage is the latest revision message for this edit.
+	RevisionMessage string
+}
+
+// PageDraft contains bounded private draft metadata without editor form values.
+type PageDraft struct {
+	// Key is the stable private draft identifier.
+	Key string
+	// PageID is the persisted page identifier, or zero for a new-page draft.
+	PageID int64
+	// PageSlug is the current canonical slug for an existing page draft.
+	PageSlug string
+	// Title is the draft title.
+	Title string
+	// Stale reports whether the published page changed after the draft started.
+	Stale bool
+	// UpdatedAt is the last draft update time.
+	UpdatedAt time.Time
+}
+
 // PageRef identifies one page for a capability request.
 type PageRef struct {
 	// Slug is the canonical page path.
@@ -164,8 +195,13 @@ type LogMessage struct {
 // An empty permission is an explicitly public, non-sensitive operation.
 func PermissionFor(method string) (string, bool) {
 	switch method {
-	case "pages.get", "pages.search", "pages.navigation", "pages.links", "pages.revisions":
+	case "pages.get", "pages.search", "pages.navigation", "pages.links", "pages.revisions",
+		"pages.recent", "pages.popular":
 		return "pages:read", true
+	case "pages.recent-viewed", "pages.favorites", "pages.recent-edits":
+		return "activity:read", true
+	case "drafts.list":
+		return "drafts:read", true
 	case "pages.content":
 		return "pages:content", true
 	case "attachments.read":
@@ -188,7 +224,7 @@ func PermissionFor(method string) (string, bool) {
 // ValidPermission reports whether permission is valid.
 func ValidPermission(permission string) bool {
 	switch permission {
-	case "browser:render", "pages:read", "pages:content", "attachments:read", "settings:read", "settings:write", "storage:read", "storage:write":
+	case "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read", "attachments:read", "settings:read", "settings:write", "storage:read", "storage:write":
 		return true
 	default:
 		return false

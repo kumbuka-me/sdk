@@ -23,6 +23,8 @@ type RenderRequest struct {
 	Invocation json.RawMessage `json:"invocation,omitempty"`
 	// Features contains request-scoped plugin settings and semantic render-policy markers.
 	Features map[string]bool `json:"features,omitempty"`
+	// Widget contains the current host surface and page for widget invocations.
+	Widget *WidgetContext `json:"widget,omitempty"`
 }
 
 // RenderResult returns intermediate output or an error. Markdown fragments are
@@ -35,6 +37,8 @@ type RenderResult struct {
 	Invocation json.RawMessage `json:"invocation,omitempty"`
 	// Parts contains ordered intermediate output fragments.
 	Parts []RenderPart `json:"parts,omitempty"`
+	// Actions contains safe host-rendered controls contributed by a widget.
+	Actions []WidgetAction `json:"actions,omitempty"`
 	// Error contains a guest-visible rendering error when the operation failed.
 	Error string `json:"error,omitempty"`
 }
@@ -46,4 +50,39 @@ type RenderPart struct {
 	Text string `json:"text,omitempty"`
 	// Markdown contains a recursive Markdown fragment for host-side rendering.
 	Markdown *string `json:"markdown,omitempty"`
+}
+
+// WidgetContext describes the host surface and current page supplied to a widget.
+type WidgetContext struct {
+	// Surface identifies where the widget is rendered.
+	Surface string `json:"surface"`
+	// Page contains the current page on page-scoped surfaces.
+	Page *Page `json:"page,omitempty"`
+	// Features contains request-scoped plugin settings and semantic policy markers.
+	// It is populated by RegisterWidget from the request envelope rather than encoded twice.
+	Features map[string]bool `json:"-"`
+}
+
+// WidgetAction asks the host to render one safe widget control.
+type WidgetAction struct {
+	// ID identifies the action within its widget.
+	ID string `json:"id"`
+	// Kind selects link or dialog behavior.
+	Kind string `json:"kind"`
+	// Label is the visible action text.
+	Label string `json:"label"`
+	// URL is a local application path handled by the host.
+	URL string `json:"url"`
+	// Icon is an optional host icon name.
+	Icon string `json:"icon,omitempty"`
+}
+
+// ValidWidgetSurface reports whether surface is a public widget placement.
+func ValidWidgetSurface(surface string) bool {
+	switch surface {
+	case "home", "page.details", "page.after-content", "page.aside", "sidebar":
+		return true
+	default:
+		return false
+	}
 }

@@ -49,6 +49,22 @@ func Failure(err error) Result {
 	return Result{Error: err.Error()}
 }
 
+// RegisterWidget registers a widget renderer for one manifest widget module.
+func RegisterWidget(id string, render func(WidgetContext) (Result, error)) {
+	RegisterModule(id, func(request Request) Result {
+		if request.Stage != "widget" || request.Widget == nil || !ValidWidgetSurface(request.Widget.Surface) {
+			return Result{Error: "unsupported widget request"}
+		}
+		context := *request.Widget
+		context.Features = request.Features
+		result, err := render(context)
+		if err != nil {
+			return Failure(err)
+		}
+		return result
+	})
+}
+
 // RegisterMacro hides the parse/render transport and invocation serialization.
 func RegisterMacro[T any](id string, parse func(string) (T, bool), render func(T) (Result, error)) {
 	RegisterModule(id, func(request Request) Result {

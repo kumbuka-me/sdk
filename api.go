@@ -25,6 +25,10 @@ type (
 	RenderResult = api.RenderResult
 	// RenderPart is one wire-level render output fragment.
 	RenderPart = api.RenderPart
+	// WidgetContext describes one host widget invocation.
+	WidgetContext = api.WidgetContext
+	// WidgetAction is one safe host-rendered widget control.
+	WidgetAction = api.WidgetAction
 
 	// Property is one public page metadata property.
 	Property = api.Property
@@ -36,6 +40,16 @@ type (
 	PageRef = api.PageRef
 	// PageContent is authorized Markdown source.
 	PageContent = api.PageContent
+	// PageLink is one outgoing wiki-link relationship.
+	PageLink = api.PageLink
+	// PageLinks contains incoming and outgoing page links.
+	PageLinks = api.PageLinks
+	// RevisionQuery selects bounded page revision metadata.
+	RevisionQuery = api.RevisionQuery
+	// Revision is public page revision metadata.
+	Revision = api.Revision
+	// RevisionHistory contains bounded revision metadata and the total count.
+	RevisionHistory = api.RevisionHistory
 	// NavigationNode is an authorized navigation entry.
 	NavigationNode = api.NavigationNode
 
@@ -74,3 +88,6 @@ func RenderPolicyFeature(name string) string { return api.RenderPolicyFeature(na
 func RenderPolicyEnabled(features map[string]bool, name string) bool {
 	return features[api.RenderPolicyFeature(name)]
 }
+
+// ValidWidgetSurface reports whether surface is a supported widget placement.
+func ValidWidgetSurface(surface string) bool { return api.ValidWidgetSurface(surface) }

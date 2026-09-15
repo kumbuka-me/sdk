@@ -50,6 +50,54 @@ type Property struct {
 	Key, Value string
 }
 
+// PageLink describes one outgoing wiki-link relationship.
+type PageLink struct {
+	// TargetSlug is the canonical or requested link destination.
+	TargetSlug string
+	// TargetTitle is the resolved page title when the destination exists.
+	TargetTitle string
+	// Exists reports whether the destination currently resolves to a page.
+	Exists bool
+}
+
+// PageLinks contains authorized incoming and outgoing wiki-link relationships.
+type PageLinks struct {
+	// Backlinks contains pages that link to the requested page.
+	Backlinks []Page
+	// Outgoing contains links found in the requested page.
+	Outgoing []PageLink
+}
+
+// RevisionQuery selects bounded revision metadata for one page.
+type RevisionQuery struct {
+	// Slug is the canonical page path.
+	Slug string
+	// Limit bounds the returned newest-first revisions.
+	Limit int
+}
+
+// Revision contains public revision metadata without stored page bodies.
+type Revision struct {
+	// Number is the monotonically increasing revision number.
+	Number int
+	// Author is the display name of the editor that created the revision.
+	Author string
+	// CreatedAt is the revision creation timestamp.
+	CreatedAt time.Time
+	// Message describes the recorded change.
+	Message string
+	// AddedLines and RemovedLines summarize the change against the previous revision.
+	AddedLines, RemovedLines int
+}
+
+// RevisionHistory contains a bounded newest-first revision list and total count.
+type RevisionHistory struct {
+	// Count is the total number of revisions for the page.
+	Count int
+	// Revisions contains at most the requested number of newest revisions.
+	Revisions []Revision
+}
+
 // NavigationNode is one prepared navigation entry exposed to plugins.
 type NavigationNode struct {
 	// Title, Icon, and URL contain prepared navigation presentation data.
@@ -116,7 +164,7 @@ type LogMessage struct {
 // An empty permission is an explicitly public, non-sensitive operation.
 func PermissionFor(method string) (string, bool) {
 	switch method {
-	case "pages.get", "pages.search", "pages.navigation":
+	case "pages.get", "pages.search", "pages.navigation", "pages.links", "pages.revisions":
 		return "pages:read", true
 	case "pages.content":
 		return "pages:content", true

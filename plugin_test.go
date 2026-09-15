@@ -38,6 +38,27 @@ func TestMacroDispatch(t *testing.T) {
 	}
 }
 
+func TestWidgetDispatch(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+
+	RegisterWidget("summary", func(context WidgetContext) (Result, error) {
+		if context.Surface != "page.details" || context.Page == nil || context.Page.Slug != "guide" || !context.Features["example.enabled"] {
+			t.Fatalf("unexpected widget context: %+v", context)
+		}
+		return Result{Parts: []Part{{Text: "<h2>Summary</h2>"}}, Actions: []WidgetAction{{ID: "all", Kind: "dialog", Label: "All revisions", URL: "/revisions/guide"}}}, nil
+	})
+
+	result := Dispatch(Request{APIVersion: Version, Module: "summary", Stage: "widget", Features: map[string]bool{"example.enabled": true}, Widget: &WidgetContext{Surface: "page.details", Page: &Page{Slug: "guide"}}})
+	if result.Error != "" || len(result.Parts) != 1 || len(result.Actions) != 1 {
+		t.Fatalf("widget: %+v", result)
+	}
+	if Dispatch(Request{APIVersion: Version, Module: "summary", Stage: "widget"}).Error == "" {
+		t.Fatal("widget request without context accepted")
+	}
+}
+
 func TestTypedCapabilities(t *testing.T) {
 	denied := errors.New("permission denied")
 	client := NewClient(func(method string, params, result any) error {
@@ -52,6 +73,13 @@ func TestTypedCapabilities(t *testing.T) {
 				t.Fatal("unbounded query")
 			}
 			*result.(*[]Page) = []Page{{Slug: "home"}}
+		case "pages.links":
+			*result.(*PageLinks) = PageLinks{Backlinks: []Page{{Slug: "backlink"}}, Outgoing: []PageLink{{TargetSlug: "target", Exists: true}}}
+		case "pages.revisions":
+			if params.(RevisionQuery).Limit != 1 {
+				t.Fatal("unexpected revision limit")
+			}
+			*result.(*RevisionHistory) = RevisionHistory{Count: 2, Revisions: []Revision{{Number: 2}}}
 		case "plugin.settings.read":
 			*result.(*StoredValue) = StoredValue{Found: true, Value: []byte{}}
 		case "plugin.storage.read":
@@ -70,6 +98,14 @@ func TestTypedCapabilities(t *testing.T) {
 	pages, err := client.Pages().Search(PageQuery{Limit: 5})
 	if err != nil || len(pages) != 1 {
 		t.Fatalf("search: %+v %v", pages, err)
+	}
+	links, err := client.Pages().Links("home")
+	if err != nil || len(links.Backlinks) != 1 || len(links.Outgoing) != 1 {
+		t.Fatalf("links: %+v %v", links, err)
+	}
+	history, err := client.Pages().Revisions(RevisionQuery{Slug: "home", Limit: 1})
+	if err != nil || history.Count != 2 || len(history.Revisions) != 1 {
+		t.Fatalf("revisions: %+v %v", history, err)
 	}
 	value, err := client.Settings().Get("empty")
 	if err != nil || !value.Found {

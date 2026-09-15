@@ -61,7 +61,7 @@ type Manifest struct {
 func (m Manifest) RequiresWASM() bool {
 	for _, module := range m.Modules {
 		switch module.Type {
-		case "renderer-extension", "macro", "code-highlighter":
+		case "renderer-extension", "macro", "code-highlighter", "widget":
 			return true
 		}
 	}
@@ -106,6 +106,8 @@ type Module struct {
 	ID string `yaml:"id"`
 	// Stage selects the renderer pipeline stage when applicable.
 	Stage string `yaml:"stage,omitempty"`
+	// Surface selects the host placement for widget modules.
+	Surface string `yaml:"surface,omitempty"`
 	// Name is the human-readable name.
 	Name string `yaml:"name,omitempty"`
 	// Description explains the module to administrators when applicable.
@@ -504,6 +506,8 @@ func validModule(m Module) bool {
 		return validEditorInsertModule(m)
 	case "icon-resource":
 		return validIconResourceModule(m)
+	case "widget":
+		return validWidgetModule(m)
 	default:
 		return false
 	}
@@ -515,6 +519,9 @@ func validModuleFields(m Module) bool {
 		return false
 	}
 	if m.Type != "browser-module" && m.JavaScript != "" {
+		return false
+	}
+	if m.Type != "widget" && m.Surface != "" {
 		return false
 	}
 	if m.Type != "browser-module" && m.Type != "content-style" && m.Type != "code-highlighter" && m.CSS != "" {
@@ -746,6 +753,11 @@ func validEditorInsertModule(m Module) bool {
 	default:
 		return false
 	}
+}
+
+// validWidgetModule validates one executable widget contribution.
+func validWidgetModule(m Module) bool {
+	return m.Stage == "" && m.Name == "" && m.Description == "" && m.Capability == "" && api.ValidWidgetSurface(m.Surface)
 }
 
 // validIconResourceModule validates one declarative icon-pack contribution.

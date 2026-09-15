@@ -436,3 +436,31 @@ permissions: []
 		require.Error(t, err)
 	}
 }
+
+func TestWidgetModule(t *testing.T) {
+	manifest := `api_version: 1
+id: io.example.widget
+name: Widget
+version: 1.0.0
+modules:
+  - type: widget
+    id: details
+    surface: page.details
+permissions:
+  - pages:read
+`
+	pkg, err := Read(testArchive(t, manifest))
+	require.NoError(t, err)
+	require.Len(t, pkg.Manifest().Modules, 1)
+	assert.Equal(t, "page.details", pkg.Manifest().Modules[0].Surface)
+	assert.True(t, pkg.Manifest().RequiresWASM())
+
+	for _, invalid := range []string{
+		strings.Replace(manifest, "page.details", "unknown", 1),
+		strings.Replace(manifest, "    surface: page.details\n", "", 1),
+		strings.Replace(manifest, "    surface: page.details", "    surface: page.details\n    stage: postprocess", 1),
+	} {
+		_, err := Read(testArchive(t, invalid))
+		require.Error(t, err)
+	}
+}

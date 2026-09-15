@@ -83,6 +83,20 @@ func (p PageClient) Content(slug string) (PageContent, error) {
 	return result, err
 }
 
+// Links returns authorized incoming and outgoing wiki-link relationships.
+func (p PageClient) Links(slug string) (PageLinks, error) {
+	var result PageLinks
+	err := p.client.call("pages.links", PageRef{Slug: slug}, &result)
+	return result, err
+}
+
+// Revisions returns bounded public revision metadata for one authorized page.
+func (p PageClient) Revisions(query RevisionQuery) (RevisionHistory, error) {
+	var result RevisionHistory
+	err := p.client.call("pages.revisions", query, &result)
+	return result, err
+}
+
 // Navigation returns the prepared navigation tree.
 func (p PageClient) Navigation() ([]NavigationNode, error) {
 	var result []NavigationNode

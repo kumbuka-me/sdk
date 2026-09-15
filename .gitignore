@@ -1,0 +1,8 @@
+/bin/*
+!/bin/dev-tools.mk
+/dist/
+*.wasm
+coverage.out
+coverage.html
+.DS_Store
+node_modules/

@@ -1,0 +1,169 @@
+package api
+
+import (
+	"encoding/json"
+	"time"
+)
+
+// CapabilityRequest never carries a caller identity. Kumbuka supplies the identity
+// and grants from the executing instance, and the viewer from the render scope.
+type CapabilityRequest struct {
+	// Method selects the host capability operation.
+	Method string `json:"method"`
+	// Params contains method-specific JSON parameters.
+	Params json.RawMessage `json:"params,omitempty"`
+}
+
+// CapabilityResponse is the JSON envelope returned by a Kumbuka host capability call.
+type CapabilityResponse struct {
+	// Value contains the method-specific JSON response payload.
+	Value json.RawMessage `json:"value,omitempty"`
+	// Error contains a safe guest-visible capability error.
+	Error string `json:"error,omitempty"`
+}
+
+// Page is the public, persistence-independent page representation exposed to plugins.
+type Page struct {
+	// Slug is the canonical page path.
+	Slug string
+	// Title is the human-readable page title.
+	Title string
+	// Status is the page lifecycle state.
+	Status string
+	// OwnerGroup is the optional human-readable owner group.
+	OwnerGroup string
+	// UpdatedAt is the page modification time.
+	UpdatedAt time.Time
+	// Author is the display name of the latest page author.
+	Author string
+	// Tags contains page tags in stable order.
+	Tags []string
+	// ViewCount is the recorded page view count.
+	ViewCount int64
+	// Properties contains public page properties in stable order.
+	Properties []Property
+}
+
+// Property is one public page metadata property.
+type Property struct {
+	// Key and Value contain one page property pair.
+	Key, Value string
+}
+
+// NavigationNode is one prepared navigation entry exposed to plugins.
+type NavigationNode struct {
+	// Title, Icon, and URL contain prepared navigation presentation data.
+	Title, Icon, URL string
+	// Page indicates whether the navigation node represents a page.
+	Page bool
+	// Children contains nested navigation nodes.
+	Children []NavigationNode
+}
+
+// PageQuery describes a bounded plugin page search.
+type PageQuery struct {
+	// Query is the normal Kumbuka search expression.
+	Query string
+	// Limit bounds the number of returned pages.
+	Limit int
+}
+
+// PageRef identifies one page for a capability request.
+type PageRef struct {
+	// Slug is the canonical page path.
+	Slug string
+}
+
+// PageContent contains authorized Markdown content returned to a plugin.
+type PageContent struct {
+	// Slug is the canonical page path.
+	Slug string
+	// Markdown is the stored page source.
+	Markdown string
+}
+
+// StorageValue carries a namespaced plugin storage key and optional value.
+type StorageValue struct {
+	// Key is the plugin-owned settings or data key.
+	Key string
+	// Value contains the opaque plugin-owned bytes.
+	Value []byte
+}
+
+// StoredValue distinguishes an absent storage key from an empty stored value.
+type StoredValue struct {
+	// Value contains the opaque plugin-owned bytes.
+	Value []byte
+	// Found indicates whether the requested value exists.
+	Found bool
+}
+
+// IconRequest identifies an icon that Kumbuka should render for a plugin.
+type IconRequest struct {
+	// Name identifies the icon to render.
+	Name string
+	// Size is the requested icon size in pixels.
+	Size int
+}
+
+// LogMessage carries one bounded plugin log entry.
+type LogMessage struct {
+	// Message is one bounded plugin log message.
+	Message string
+}
+
+// PermissionFor is the closed set of host operations supported by API v1.
+// An empty permission is an explicitly public, non-sensitive operation.
+func PermissionFor(method string) (string, bool) {
+	switch method {
+	case "pages.get", "pages.search", "pages.navigation":
+		return "pages:read", true
+	case "pages.content":
+		return "pages:content", true
+	case "attachments.read":
+		return "attachments:read", true
+	case "plugin.settings.read":
+		return "settings:read", true
+	case "plugin.settings.write":
+		return "settings:write", true
+	case "plugin.storage.read":
+		return "storage:read", true
+	case "plugin.storage.write":
+		return "storage:write", true
+	case "icons.render", "log":
+		return "", true
+	default:
+		return "", false
+	}
+}
+
+// ValidPermission reports whether permission is valid.
+func ValidPermission(permission string) bool {
+	switch permission {
+	case "browser:render", "pages:read", "pages:content", "attachments:read", "settings:read", "settings:write", "storage:read", "storage:write":
+		return true
+	default:
+		return false
+	}
+}
+
+// AttachmentRead selects a bounded byte range; a request scope must explicitly
+// supply an authorized attachment reader before this operation is available.
+type AttachmentRead struct {
+	// ID identifies the attachment in the authorized request scope.
+	ID int64
+	// Offset is the first attachment byte to return.
+	Offset int64
+	// Length is the maximum number of attachment bytes to return.
+	Length int
+}
+
+// Attachment contains metadata and bounded bytes returned by an attachment capability.
+type Attachment struct {
+	// Filename and ContentType describe the attachment payload.
+	Filename, ContentType string
+	// Size is the complete attachment size in bytes.
+	Size int64
+	// Data contains the requested attachment byte range.
+	Data []byte
+}

@@ -64,5 +64,13 @@ func ValidPermission(permission string) bool { return api.ValidPermission(permis
 // ValidSyntax reports whether name identifies a supported declarative Markdown grammar.
 func ValidSyntax(name string) bool { return api.ValidSyntax(name) }
 
-// ValidRenderPolicy reports whether name identifies a supported render policy.
+// ValidRenderPolicy reports whether name is a valid public render-policy marker.
 func ValidRenderPolicy(name string) bool { return api.ValidRenderPolicy(name) }
+
+// RenderPolicyFeature returns the request feature key for one render-policy marker.
+func RenderPolicyFeature(name string) string { return api.RenderPolicyFeature(name) }
+
+// RenderPolicyEnabled reports whether one render-policy marker is active for a request.
+func RenderPolicyEnabled(features map[string]bool, name string) bool {
+	return features[api.RenderPolicyFeature(name)]
+}

@@ -122,7 +122,7 @@ type Module struct {
 	CSS string `yaml:"css,omitempty"`
 	// Asset names the data asset owned by declarative resource modules.
 	Asset string `yaml:"asset,omitempty"`
-	// Policy selects a host rendering policy for render-policy modules.
+	// Policy declares a semantic rendering-policy marker shared with executable modules.
 	Policy string `yaml:"policy,omitempty"`
 	// Priority orders content preprocessors. Lower values run first.
 	Priority int `yaml:"priority,omitempty"`
@@ -142,9 +142,19 @@ type Module struct {
 	Trigger string `yaml:"trigger,omitempty"`
 	// Replacement formats a selected resource record into Markdown.
 	Replacement string `yaml:"replacement,omitempty"`
-	// Markdown is the static source inserted by an editor-insert module.
+	// Markdown is the inserted source or opening text used by an editor-insert module.
 	Markdown string `yaml:"markdown,omitempty"`
-	// Inline reports whether editor insertion should avoid block line breaks.
+	// Suffix closes wrapped editor selections when Mode is wrap.
+	Suffix string `yaml:"suffix,omitempty"`
+	// Placeholder is used when an editor action has no selected text.
+	Placeholder string `yaml:"placeholder,omitempty"`
+	// Mode selects insert, wrap, or prefix-lines behavior for editor-insert modules.
+	Mode string `yaml:"mode,omitempty"`
+	// Group places an editor-insert action in insert, text, or blocks UI.
+	Group string `yaml:"group,omitempty"`
+	// Icon names an optional host icon for the editor action.
+	Icon string `yaml:"icon,omitempty"`
+	// Inline reports whether plain insertion should avoid block line breaks.
 	Inline bool `yaml:"inline,omitempty"`
 	// Usage declares cheap host-side source selectors for executable modules.
 	Usage []UsageRule `yaml:"usage,omitempty"`
@@ -552,10 +562,7 @@ func validModuleFields(m Module) bool {
 	if m.Type != "editor-completion" && m.Replacement != "" {
 		return false
 	}
-	if m.Type != "editor-insert" && m.Markdown != "" {
-		return false
-	}
-	if m.Type != "editor-insert" && m.Inline {
+	if m.Type != "editor-insert" && (m.Markdown != "" || m.Suffix != "" || m.Placeholder != "" || m.Mode != "" || m.Group != "" || m.Icon != "" || m.Inline) {
 		return false
 	}
 	if m.Type != "content-substitution" && (m.Inspect || m.Export) {
@@ -570,7 +577,7 @@ func validUsageRules(m Module) bool {
 		return true
 	}
 	switch m.Type {
-	case "renderer-extension", "macro", "markdown-syntax", "code-highlighter":
+	case "renderer-extension", "macro", "markdown-syntax", "code-highlighter", "content-style":
 	default:
 		return false
 	}
@@ -632,7 +639,7 @@ func validContentStyleModule(m Module) bool {
 		validPath(m.CSS) && strings.HasSuffix(m.CSS, ".css")
 }
 
-// validRenderPolicyModule validates a host rendering-policy contribution.
+// validRenderPolicyModule validates a semantic rendering-policy contribution.
 func validRenderPolicyModule(m Module) bool {
 	return m.Stage == "" && m.Name == "" && m.Capability == "" && api.ValidRenderPolicy(m.Policy)
 }
@@ -709,10 +716,36 @@ func validEditorCompletionModule(m Module) bool {
 		identifier.MatchString(m.LabelField) && (m.DetailField == "" || identifier.MatchString(m.DetailField))
 }
 
-// validEditorInsertModule validates one static editor insertion action.
+// validEditorInsertModule validates one declarative editor action.
 func validEditorInsertModule(m Module) bool {
-	return m.Stage == "" && m.Capability == "" && strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 &&
-		len(m.Description) <= 1024 && len(m.Markdown) > 0 && len(m.Markdown) <= 4096
+	if m.Stage != "" || m.Capability != "" || strings.TrimSpace(m.Name) == "" || len(m.Name) > 128 ||
+		len(m.Description) > 1024 || len(m.Markdown) == 0 || len(m.Markdown) > 4096 || len(m.Suffix) > 4096 ||
+		len(m.Placeholder) > 256 || (m.Icon != "" && !identifier.MatchString(m.Icon)) {
+		return false
+	}
+
+	mode := m.Mode
+	if mode == "" {
+		mode = "insert"
+	}
+	group := m.Group
+	if group == "" {
+		group = "insert"
+	}
+	if group != "insert" && group != "text" && group != "blocks" {
+		return false
+	}
+
+	switch mode {
+	case "insert":
+		return m.Suffix == "" && m.Placeholder == ""
+	case "wrap":
+		return m.Suffix != "" && !m.Inline
+	case "prefix-lines":
+		return m.Suffix == "" && !m.Inline
+	default:
+		return false
+	}
 }
 
 // validIconResourceModule validates one declarative icon-pack contribution.

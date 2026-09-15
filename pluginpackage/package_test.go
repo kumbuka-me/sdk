@@ -249,9 +249,11 @@ modules:
   - type: content-style
     id: typography
     css: plugin.css
+    usage:
+      - contains: "font"
   - type: render-policy
     id: operators
-    policy: coding-ligatures
+    policy: preserve-programming-operators
   - type: settings
     id: enabled
     name: Extra typography
@@ -260,11 +262,12 @@ permissions: []
 `
 	pkg, err := Read(testArchive(t, manifest, archiveEntry{"assets/plugin.css", []byte(".prose{}"), 0644}))
 	require.NoError(t, err)
-	assert.Equal(t, "coding-ligatures", pkg.Manifest().Modules[1].Policy)
+	assert.Equal(t, "font", pkg.Manifest().Modules[0].Usage[0].Contains)
+	assert.Equal(t, "preserve-programming-operators", pkg.Manifest().Modules[1].Policy)
 	assert.Equal(t, "Enable optional typography behavior.", pkg.Manifest().Modules[2].Description)
 
 	for _, invalid := range []string{
-		strings.ReplaceAll(manifest, "policy: coding-ligatures", "policy: unknown"),
+		strings.ReplaceAll(manifest, "policy: preserve-programming-operators", "policy: Invalid Policy"),
 		strings.ReplaceAll(manifest, "css: plugin.css", "css: ../plugin.css"),
 		strings.ReplaceAll(manifest, "type: content-style", "type: renderer-extension\n    stage: preprocess"),
 	} {
@@ -390,4 +393,46 @@ permissions: []
 
 	_, err = Read(testArchiveWithoutWASM(t, manifest))
 	require.ErrorContains(t, err, "missing module asset icons.json")
+}
+
+func TestEditorInsertSupportsGenericToolbarActions(t *testing.T) {
+	manifest := `api_version: 1
+id: com.example.editor
+name: Editor
+version: 1.0.0
+modules:
+  - type: editor-insert
+    id: strike
+    name: Strikethrough
+    markdown: "~~"
+    suffix: "~~"
+    placeholder: text
+    mode: wrap
+    group: text
+    icon: strikethrough-lucide
+  - type: editor-insert
+    id: tasks
+    name: Task list
+    markdown: "- [ ] "
+    placeholder: task
+    mode: prefix-lines
+    group: blocks
+    icon: list-checks-lucide
+permissions: []
+`
+	pkg, err := Read(testArchiveWithoutWASM(t, manifest))
+	require.NoError(t, err)
+	require.Len(t, pkg.Manifest().Modules, 2)
+	assert.Equal(t, "wrap", pkg.Manifest().Modules[0].Mode)
+	assert.Equal(t, "prefix-lines", pkg.Manifest().Modules[1].Mode)
+
+	for _, invalid := range []string{
+		strings.Replace(manifest, "mode: wrap", "mode: unknown", 1),
+		strings.Replace(manifest, "group: text", "group: sidebar", 1),
+		strings.Replace(manifest, "suffix: \"~~\"", "suffix: \"\"", 1),
+		strings.Replace(manifest, "icon: strikethrough-lucide", "icon: Bad Icon", 1),
+	} {
+		_, err := Read(testArchiveWithoutWASM(t, invalid))
+		require.Error(t, err)
+	}
 }

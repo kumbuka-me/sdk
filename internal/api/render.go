@@ -21,7 +21,7 @@ type RenderRequest struct {
 	Language string `json:"language,omitempty"`
 	// Invocation carries serialized macro arguments between parse and render stages.
 	Invocation json.RawMessage `json:"invocation,omitempty"`
-	// Features contains request-scoped feature flags.
+	// Features contains request-scoped plugin settings and semantic render-policy markers.
 	Features map[string]bool `json:"features,omitempty"`
 }
 

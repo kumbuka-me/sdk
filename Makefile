@@ -28,11 +28,7 @@ BUILD_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 LDFLAGS ?= -s -w -X main.Version=$(BUILD_VERSION) -X main.Commit=$(BUILD_COMMIT)
 
 ## Formatting
-PRETTIER_MD_SOURCES := \
-	README.md \
-	WIRE.md \
-	"markdown/**/*.md" \
-	"pluginpackage/**/*.md"
+PRETTIER_MD_SOURCES := README.md
 
 
 ##@ Development

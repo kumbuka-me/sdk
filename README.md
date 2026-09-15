@@ -54,3 +54,7 @@ make test
 ```
 
 The SDK has no dependency on the Kumbuka application module. Kumbuka and Kumbuka plugins depend on this module instead.
+
+## License
+
+Kumbuka is licensed under the [Apache License, Version 2.0](LICENSE).

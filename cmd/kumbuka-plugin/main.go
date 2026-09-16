@@ -14,6 +14,7 @@ var (
 	Commit  = "none"
 )
 
+// main runs the Kumbuka plugin development CLI.
 func main() {
 	if err := cli.Run(
 		context.Background(),

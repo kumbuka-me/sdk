@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -140,8 +141,12 @@ type Module struct {
 	Mode string `yaml:"mode,omitempty"`
 	// Group places an editor-insert action in insert, text, or blocks UI.
 	Group string `yaml:"group,omitempty"`
-	// Icon names an optional host icon for the editor action.
+	// Icon names an optional host icon for editor and page actions.
 	Icon string `yaml:"icon,omitempty"`
+	// Kind selects link or host-dialog behavior for page-action modules.
+	Kind string `yaml:"kind,omitempty"`
+	// URL is a local host path template used by page-action modules.
+	URL string `yaml:"url,omitempty"`
 	// Inline reports whether plain insertion should avoid block line breaks.
 	Inline bool `yaml:"inline,omitempty"`
 	// Usage declares cheap host-side source selectors for executable modules.
@@ -315,6 +320,8 @@ func validModule(m Module) bool {
 		return validIconResourceModule(m)
 	case "widget":
 		return validWidgetModule(m)
+	case "page-action":
+		return validPageActionModule(m)
 	default:
 		return false
 	}
@@ -333,7 +340,7 @@ func validModuleRenderFields(module Module) bool {
 	if module.Type != "browser-module" && module.JavaScript != "" {
 		return false
 	}
-	if module.Type != "widget" && (module.Surface != "" || module.Width != "" || module.Order != 0) {
+	if module.Type != "widget" && module.Type != "page-action" && (module.Surface != "" || module.Width != "" || module.Order != 0) {
 		return false
 	}
 	if module.Type != "browser-module" && module.Type != "content-style" && module.Type != "code-highlighter" && module.CSS != "" {
@@ -348,7 +355,7 @@ func validModuleRenderFields(module Module) bool {
 	if module.Type != "render-policy" && module.Policy != "" {
 		return false
 	}
-	if module.Type != "settings" && module.Type != "admin-resource" && module.Type != "editor-insert" && module.Description != "" {
+	if module.Type != "settings" && module.Type != "admin-resource" && module.Type != "editor-insert" && module.Type != "page-action" && module.Description != "" {
 		return false
 	}
 	if module.Type != "settings" && len(module.Requires) != 0 {
@@ -383,7 +390,13 @@ func validModuleEditorFields(module Module) bool {
 		return false
 	}
 	if module.Type != "editor-insert" && (module.Markdown != "" || module.Suffix != "" || module.Placeholder != "" ||
-		module.Mode != "" || module.Group != "" || module.Icon != "" || module.Inline) {
+		module.Mode != "" || module.Group != "" || module.Inline) {
+		return false
+	}
+	if module.Type != "editor-insert" && module.Type != "page-action" && module.Icon != "" {
+		return false
+	}
+	if module.Type != "page-action" && (module.Kind != "" || module.URL != "") {
 		return false
 	}
 	return true
@@ -588,6 +601,30 @@ func validEditorInsertModule(m Module) bool {
 func validWidgetModule(m Module) bool {
 	return m.Stage == "" && m.Name == "" && m.Description == "" && m.Capability == "" &&
 		api.ValidWidgetSurface(m.Surface) && api.ValidWidgetWidth(m.Width) && m.Order >= -1000 && m.Order <= 1000
+}
+
+// validPageActionModule validates one host-rendered current-page navigation action.
+func validPageActionModule(m Module) bool {
+	return m.Stage == "" && m.Capability == "" && m.Surface == "" && m.Width == "" &&
+		strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 && len(m.Description) <= 1024 &&
+		(m.Icon == "" || identifier.MatchString(m.Icon)) && (m.Kind == "" || m.Kind == "link" || m.Kind == "dialog") &&
+		m.Order >= -1000 && m.Order <= 1000 && validPageActionURL(m.URL)
+}
+
+// validPageActionURL accepts bounded local URL templates with page placeholders only.
+func validPageActionURL(value string) bool {
+	if len(value) == 0 || len(value) > 2048 || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") ||
+		strings.ContainsAny(value, "\\\r\n\t") {
+		return false
+	}
+
+	resolved := strings.ReplaceAll(value, "${slug}", "page")
+	resolved = strings.ReplaceAll(resolved, "${id}", "1")
+	if strings.Contains(resolved, "${") {
+		return false
+	}
+	parsed, err := url.ParseRequestURI(resolved)
+	return err == nil && parsed.Host == "" && !parsed.IsAbs()
 }
 
 // validIconResourceModule validates one declarative icon-pack contribution.

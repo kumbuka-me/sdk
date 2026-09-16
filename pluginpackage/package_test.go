@@ -470,3 +470,36 @@ permissions:
 		require.Error(t, err)
 	}
 }
+
+func TestPageActionModule(t *testing.T) {
+	manifest := `api_version: 1
+id: io.example.actions
+name: Actions
+version: 1.0.0
+modules:
+  - type: page-action
+    id: history
+    name: Revision history
+    description: Open revision history.
+    icon: history-lucide
+    kind: dialog
+    url: /revisions/${slug}?page=${id}
+    order: 25
+permissions: []
+`
+
+	pkg, err := Read(testArchiveWithoutWASM(t, manifest))
+	require.NoError(t, err)
+	require.Len(t, pkg.Manifest().Modules, 1)
+	assert.Equal(t, "page-action", pkg.Manifest().Modules[0].Type)
+	assert.False(t, pkg.Manifest().RequiresWASM())
+
+	for _, invalid := range []string{
+		strings.Replace(manifest, "/revisions/${slug}?page=${id}", "https://example.com/history", 1),
+		strings.Replace(manifest, "/revisions/${slug}?page=${id}", "/revisions/${unknown}", 1),
+		strings.Replace(manifest, "icon: history-lucide", "icon: Bad Icon", 1),
+	} {
+		_, err := Read(testArchiveWithoutWASM(t, invalid))
+		require.Error(t, err)
+	}
+}

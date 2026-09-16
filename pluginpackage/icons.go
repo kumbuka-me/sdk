@@ -20,16 +20,22 @@ const (
 
 // IconResource is the versioned JSON payload declared by an icon-resource module.
 type IconResource struct {
-	Format int    `json:"format"`
-	Icons  []Icon `json:"icons"`
+	// Format identifies the icon resource schema version.
+	Format int `json:"format"`
+	// Icons contains the validated icons exposed by the resource.
+	Icons []Icon `json:"icons"`
 }
 
 // Icon is one host-rendered icon in an icon resource.
 type Icon struct {
-	Name    string   `json:"name"`
-	Label   string   `json:"label"`
-	ViewBox string   `json:"view_box"`
-	Paths   []string `json:"paths"`
+	// Name is the canonical icon identifier.
+	Name string `json:"name"`
+	// Label is the human-readable icon name.
+	Label string `json:"label"`
+	// ViewBox is the normalized SVG view box.
+	ViewBox string `json:"view_box"`
+	// Paths contains one or more SVG path data strings.
+	Paths []string `json:"paths"`
 }
 
 // ParseIconResource strictly decodes and validates one bounded icon catalog.
@@ -48,29 +54,46 @@ func ParseIconResource(data []byte) (IconResource, error) {
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return IconResource{}, errors.New("icon resource must contain exactly one JSON document")
 	}
-
 	if resource.Format != 1 || len(resource.Icons) == 0 || len(resource.Icons) > MaxIconResourceIcons {
 		return IconResource{}, errors.New("invalid icon resource")
 	}
 
 	seen := make(map[string]bool, len(resource.Icons))
 	for index := range resource.Icons {
-		icon := &resource.Icons[index]
-		icon.Name = strings.TrimSpace(icon.Name)
-		icon.Label = strings.TrimSpace(icon.Label)
-		icon.ViewBox = strings.Join(strings.Fields(icon.ViewBox), " ")
-		if !identifier.MatchString(icon.Name) || !validIconText(icon.Label, MaxIconResourceLabel) || !validIconViewBox(icon.ViewBox) || len(icon.Paths) == 0 || len(icon.Paths) > MaxIconResourcePaths || seen[icon.Name] {
+		if !normalizeAndValidateIcon(&resource.Icons[index], seen) {
 			return IconResource{}, errors.New("invalid icon resource")
 		}
-		seen[icon.Name] = true
-		for _, path := range icon.Paths {
-			if strings.TrimSpace(path) == "" || len(path) > MaxIconResourcePathBytes || !utf8.ValidString(path) || strings.ContainsRune(path, '\x00') {
-				return IconResource{}, errors.New("invalid icon resource")
-			}
+		seen[resource.Icons[index].Name] = true
+	}
+	return resource, nil
+}
+
+// normalizeAndValidateIcon normalizes one icon and checks its metadata and paths.
+func normalizeAndValidateIcon(icon *Icon, seen map[string]bool) bool {
+	icon.Name = strings.TrimSpace(icon.Name)
+	icon.Label = strings.TrimSpace(icon.Label)
+	icon.ViewBox = strings.Join(strings.Fields(icon.ViewBox), " ")
+	if !identifier.MatchString(icon.Name) || seen[icon.Name] {
+		return false
+	}
+	if !validIconText(icon.Label, MaxIconResourceLabel) || !validIconViewBox(icon.ViewBox) {
+		return false
+	}
+	return validIconPaths(icon.Paths)
+}
+
+// validIconPaths checks bounded UTF-8 SVG path data without interpreting commands.
+func validIconPaths(paths []string) bool {
+	if len(paths) == 0 || len(paths) > MaxIconResourcePaths {
+		return false
+	}
+	for _, path := range paths {
+		if strings.TrimSpace(path) == "" || len(path) > MaxIconResourcePathBytes ||
+			!utf8.ValidString(path) || strings.ContainsRune(path, '\x00') {
+			return false
 		}
 	}
-
-	return resource, nil
+	return true
 }
 
 // validIconText reports whether human-readable icon metadata is safe and bounded.
@@ -92,7 +115,8 @@ func validIconViewBox(value string) bool {
 	if len(fields) != 4 {
 		return false
 	}
-	values := make([]float64, 4)
+
+	var values [4]float64
 	for index, field := range fields {
 		value, err := strconv.ParseFloat(field, 64)
 		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {

@@ -14,9 +14,10 @@
   ],
   "packageRules": [
     {
-      "matchManagers": ["github-actions"],
+      "matchManagers": ["custom.regex"],
       "matchPackageNames": ["golangci/golangci-lint"],
       "automerge": true
     }
   ]
 }
+

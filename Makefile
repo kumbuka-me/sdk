@@ -96,7 +96,7 @@ lint-go: golangci-lint ## Run golangci-lint.
 	$(call run-tool,$(GOLANGCI_LINT),run)
 
 .PHONY: lint-fix
-lint-fix: fmt-md golangci-lint ## Run linters and apply fixes.
+lint-fix: fmt golangci-lint ## Run linters and apply fixes.
 	$(call run-tool,$(GOLANGCI_LINT),run --fix)
 
 
@@ -114,3 +114,5 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
+
+

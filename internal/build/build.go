@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,135 +19,136 @@ import (
 // Build validates and compiles a project, then writes a deterministic package.
 // Browser sources must already be compiled to the manifest-declared assets.
 func Build(ctx context.Context, directory, destination string) error {
-	manifest, err := Validate(directory)
+	project, err := loadProject(directory)
 	if err != nil {
 		return err
 	}
-	temporary, err := os.MkdirTemp("", "kumbuka-plugin-build-*")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = os.RemoveAll(temporary) }()
-
-	if manifest.RequiresWASM() {
-		command := exec.CommandContext(ctx,
-			"go", "build", "-trimpath", "-buildvcs=false", "-buildmode=c-shared", "-ldflags=-s -w -buildid=", "-o", filepath.Join(temporary, "plugin.wasm"), ".")
-		command.Dir = directory
-
-		// Build with the Go version declared by the containing module. A plugin may
-		// live in its own module or in a shared repository-level module.
-		_, module, err := findModuleFile(directory)
+	if project.manifest.RequiresWASM() {
+		wasm, err := compileWASM(ctx, directory)
 		if err != nil {
 			return err
 		}
-
-		toolchain := ""
-		for _, line := range strings.Split(string(module), "\n") {
-			if value, ok := strings.CutPrefix(strings.TrimSpace(line), "go "); ok {
-				toolchain = "go" + strings.TrimSpace(value)
-				break
-			}
-		}
-		if toolchain == "" {
-			return fmt.Errorf("no Go toolchain in %s", directory)
-		}
-
-		environment := make([]string, 0, len(os.Environ()))
-		for _, value := range os.Environ() {
-			key, _, _ := strings.Cut(value, "=")
-			switch key {
-			case "GOOS", "GOARCH", "GOFLAGS", "GOWORK", "GOTOOLCHAIN", "CGO_ENABLED":
-				continue
-			}
-			environment = append(environment, value)
-		}
-
-		command.Env = append(environment, "GOOS=wasip1", "GOARCH=wasm", "CGO_ENABLED=0", "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN="+toolchain)
-		if output, err := command.CombinedOutput(); err != nil {
-			return fmt.Errorf("build %s: %w\n%s", directory, err, output)
-		}
+		project.files["plugin.wasm"] = wasm
 	}
 
-	files := map[string]string{
-		"README.md":   filepath.Join(directory, "README.md"),
-		"plugin.yaml": filepath.Join(directory, "plugin.yaml"),
-	}
-	if manifest.RequiresWASM() {
-		files["plugin.wasm"] = filepath.Join(temporary, "plugin.wasm")
-	}
-	assets := filepath.Join(directory, "assets")
-	if _, err := os.Stat(assets); err == nil {
-		if err := filepath.WalkDir(assets, func(path string, entry fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if entry.Type()&os.ModeSymlink != 0 {
-				return fmt.Errorf("plugin asset %s is a symlink", path)
-			}
-			if entry.IsDir() {
-				return nil
-			}
-			relative, err := filepath.Rel(directory, path)
-			if err != nil {
-				return err
-			}
-			info, err := entry.Info()
-			if err != nil {
-				return err
-			}
-			if !info.Mode().IsRegular() || info.Size() > pluginpackage.MaxAssetBytes {
-				return fmt.Errorf("invalid or oversized asset: %s", path)
-			}
-			files[filepath.ToSlash(relative)] = path
-			return nil
-		}); err != nil {
-			return err
-		}
-	} else if !os.IsNotExist(err) {
+	archive, err := writeArchive(project.files)
+	if err != nil {
 		return err
 	}
-
-	if len(files) > pluginpackage.MaxFiles {
-		return fmt.Errorf("too many plugin files")
+	if _, err := pluginpackage.Read(archive); err != nil {
+		return err
 	}
-	var buffer bytes.Buffer
-	archive := zip.NewWriter(&buffer)
+	return writePackage(destination, archive)
+}
+
+// compileWASM builds one plugin with the Go version declared by its containing module.
+func compileWASM(ctx context.Context, directory string) ([]byte, error) {
+	modulePath, module, err := findModuleFile(directory)
+	if err != nil {
+		return nil, err
+	}
+	toolchain, err := moduleToolchain(module)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", modulePath, err)
+	}
+
+	temporary, err := os.MkdirTemp("", "kumbuka-plugin-build-*")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.RemoveAll(temporary) }()
+
+	outputPath := filepath.Join(temporary, "plugin.wasm")
+	command := exec.CommandContext(
+		ctx,
+		"go", "build",
+		"-trimpath",
+		"-buildvcs=false",
+		"-buildmode=c-shared",
+		"-ldflags=-s -w -buildid=",
+		"-o", outputPath,
+		".",
+	)
+	command.Dir = directory
+	command.Env = wasmBuildEnvironment(toolchain)
+	if output, err := command.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("build %s: %w\n%s", directory, err, output)
+	}
+
+	return readRegular(outputPath, pluginpackage.MaxWASMBytes)
+}
+
+// moduleToolchain returns the Go toolchain selected by a module's go directive.
+func moduleToolchain(module []byte) (string, error) {
+	for _, line := range strings.Split(string(module), "\n") {
+		if value, ok := strings.CutPrefix(strings.TrimSpace(line), "go "); ok {
+			return "go" + strings.TrimSpace(value), nil
+		}
+	}
+	return "", fmt.Errorf("go.mod has no go directive")
+}
+
+// wasmBuildEnvironment returns a clean environment for deterministic WASI compilation.
+func wasmBuildEnvironment(toolchain string) []string {
+	environment := make([]string, 0, len(os.Environ())+6)
+	for _, value := range os.Environ() {
+		key, _, _ := strings.Cut(value, "=")
+		switch key {
+		case "GOOS", "GOARCH", "GOFLAGS", "GOWORK", "GOTOOLCHAIN", "CGO_ENABLED":
+			continue
+		}
+		environment = append(environment, value)
+	}
+	return append(
+		environment,
+		"GOOS=wasip1",
+		"GOARCH=wasm",
+		"CGO_ENABLED=0",
+		"GOFLAGS=",
+		"GOWORK=off",
+		"GOTOOLCHAIN="+toolchain,
+	)
+}
+
+// writeArchive serializes validated package files into a deterministic ZIP archive.
+func writeArchive(files map[string][]byte) ([]byte, error) {
+	if len(files) > pluginpackage.MaxFiles {
+		return nil, fmt.Errorf("too many plugin files")
+	}
+
 	names := make([]string, 0, len(files))
 	for name := range files {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 
+	var buffer bytes.Buffer
+	archive := zip.NewWriter(&buffer)
 	for _, name := range names {
-		content, err := os.ReadFile(files[name])
-		if err != nil {
-			return err
-		}
 		header := &zip.FileHeader{Name: name, Method: zip.Deflate}
 		header.SetMode(0o644)
 		writer, err := archive.CreateHeader(header)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if _, err := writer.Write(content); err != nil {
-			return err
+		if _, err := writer.Write(files[name]); err != nil {
+			return nil, err
 		}
 	}
 	if err := archive.Close(); err != nil {
-		return err
+		return nil, err
 	}
+	return buffer.Bytes(), nil
+}
 
-	if _, err := pluginpackage.Read(buffer.Bytes()); err != nil {
-		return err
-	}
-
+// writePackage creates the destination directory and avoids rewriting identical packages.
+func writePackage(destination string, archive []byte) error {
 	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
 		return err
 	}
 	previous, _ := os.ReadFile(destination)
-	if bytes.Equal(previous, buffer.Bytes()) {
+	if bytes.Equal(previous, archive) {
 		return nil
 	}
-	return os.WriteFile(destination, buffer.Bytes(), 0o644)
+	return os.WriteFile(destination, archive, 0o644)
 }

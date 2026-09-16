@@ -9,6 +9,7 @@ import (
 
 var errModuleNotFound = errors.New("go.mod not found")
 
+// findModuleFile locates the nearest containing go.mod and returns its contents.
 func findModuleFile(directory string) (string, []byte, error) {
 	current, err := filepath.Abs(directory)
 	if err != nil {

@@ -126,6 +126,7 @@ type PageListQuery struct {
 
 // RecentEdit describes a page recently edited by the current viewer.
 type RecentEdit struct {
+	// Page contains the public page metadata for the edit.
 	Page
 	// RevisionMessage is the latest revision message for this edit.
 	RevisionMessage string
@@ -224,7 +225,8 @@ func PermissionFor(method string) (string, bool) {
 // ValidPermission reports whether permission is valid.
 func ValidPermission(permission string) bool {
 	switch permission {
-	case "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read", "attachments:read", "settings:read", "settings:write", "storage:read", "storage:write":
+	case "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read",
+		"attachments:read", "settings:read", "settings:write", "storage:read", "storage:write":
 		return true
 	default:
 		return false

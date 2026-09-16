@@ -25,6 +25,8 @@ type RenderRequest struct {
 	Features map[string]bool `json:"features,omitempty"`
 	// Widget contains the current host surface and page for widget invocations.
 	Widget *WidgetContext `json:"widget,omitempty"`
+	// WidgetCommand contains one host-validated command invocation for a widget.
+	WidgetCommand *WidgetCommandContext `json:"widget_command,omitempty"`
 	// Export contains the current page and source for exporter invocations.
 	Export *ExportContext `json:"export,omitempty"`
 }
@@ -43,6 +45,8 @@ type RenderResult struct {
 	Actions []WidgetAction `json:"actions,omitempty"`
 	// File contains the bounded download produced by an exporter invocation.
 	File *ExportFile `json:"file,omitempty"`
+	// WidgetCommand contains the host navigation result of a widget command.
+	WidgetCommand *WidgetCommandResult `json:"widget_command,omitempty"`
 	// Error contains a guest-visible rendering error when the operation failed.
 	Error string `json:"error,omitempty"`
 }
@@ -92,7 +96,7 @@ type WidgetContext struct {
 type WidgetAction struct {
 	// ID identifies the action within its widget.
 	ID string `json:"id"`
-	// Kind selects link or dialog behavior.
+	// Kind selects link, dialog, or host-mediated command behavior.
 	Kind string `json:"kind"`
 	// Label is the visible action text.
 	Label string `json:"label"`
@@ -100,6 +104,27 @@ type WidgetAction struct {
 	URL string `json:"url"`
 	// Icon is an optional host icon name.
 	Icon string `json:"icon,omitempty"`
+	// Confirm is optional confirmation text shown before a command is submitted.
+	Confirm string `json:"confirm,omitempty"`
+}
+
+// WidgetCommandContext describes one host-mediated command invocation.
+type WidgetCommandContext struct {
+	// Surface identifies the widget placement that emitted the command.
+	Surface string `json:"surface"`
+	// Page contains the authorized current page on page-scoped surfaces.
+	Page *Page `json:"page,omitempty"`
+	// Action identifies the command selected by the user.
+	Action string `json:"action"`
+	// Features contains request-scoped plugin settings and semantic policy markers.
+	// It is populated by RegisterWidgetWithCommands from the request envelope rather than encoded twice.
+	Features map[string]bool `json:"-"`
+}
+
+// WidgetCommandResult controls safe host navigation after a widget command.
+type WidgetCommandResult struct {
+	// Redirect is an optional local path selected by the plugin after the command succeeds.
+	Redirect string `json:"redirect,omitempty"`
 }
 
 // ValidWidgetSurface reports whether surface is a public widget placement.

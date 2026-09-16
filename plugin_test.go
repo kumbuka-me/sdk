@@ -242,3 +242,34 @@ func TestExporterDispatch(t *testing.T) {
 		t.Fatal("export request without context accepted")
 	}
 }
+
+func TestWidgetCommandDispatch(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+
+	RegisterWidgetWithCommands(
+		"summary",
+		func(WidgetContext) (Result, error) { return Text("summary"), nil },
+		func(context WidgetCommandContext) (WidgetCommandResult, error) {
+			if context.Surface != "page.details" || context.Page == nil || context.Page.Slug != "guide" || context.Action != "refresh" {
+				t.Fatalf("unexpected widget command context: %+v", context)
+			}
+			return WidgetCommandResult{Redirect: "/pages/guide"}, nil
+		},
+	)
+
+	result := Dispatch(Request{
+		APIVersion: Version,
+		Module:     "summary",
+		Stage:      "widget-command",
+		WidgetCommand: &WidgetCommandContext{
+			Surface: "page.details",
+			Page:    &Page{Slug: "guide"},
+			Action:  "refresh",
+		},
+	})
+	if result.Error != "" || result.WidgetCommand == nil || result.WidgetCommand.Redirect != "/pages/guide" {
+		t.Fatalf("widget command: %+v", result)
+	}
+}

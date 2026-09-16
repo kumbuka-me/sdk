@@ -29,6 +29,10 @@ type (
 	WidgetContext = api.WidgetContext
 	// WidgetAction is one safe host-rendered widget control.
 	WidgetAction = api.WidgetAction
+	// WidgetCommandContext describes one host-mediated widget command invocation.
+	WidgetCommandContext = api.WidgetCommandContext
+	// WidgetCommandResult controls safe host navigation after a widget command.
+	WidgetCommandResult = api.WidgetCommandResult
 	// ExportContext describes one authorized page export invocation.
 	ExportContext = api.ExportContext
 	// ExportFile is one bounded file returned by an exporter plugin.

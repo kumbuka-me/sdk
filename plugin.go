@@ -57,7 +57,16 @@ func Failure(err error) Result {
 
 // RegisterWidget registers a widget renderer for one manifest widget module.
 func RegisterWidget(id string, render func(WidgetContext) (Result, error)) {
-	RegisterModule(id, widgetHandler(render))
+	RegisterModule(id, widgetHandler(render, nil))
+}
+
+// RegisterWidgetWithCommands registers a widget renderer plus host-mediated command handler.
+func RegisterWidgetWithCommands(
+	id string,
+	render func(WidgetContext) (Result, error),
+	command func(WidgetCommandContext) (WidgetCommandResult, error),
+) {
+	RegisterModule(id, widgetHandler(render, command))
 }
 
 // RegisterExporter registers one page exporter for a manifest exporter module.
@@ -86,23 +95,55 @@ func exporterHandler(export func(ExportContext) (ExportFile, error)) Handler {
 }
 
 // widgetHandler adapts a typed widget renderer to the generic module handler contract.
-func widgetHandler(render func(WidgetContext) (Result, error)) Handler {
+func widgetHandler(
+	render func(WidgetContext) (Result, error),
+	command func(WidgetCommandContext) (WidgetCommandResult, error),
+) Handler {
 	if render == nil {
 		return nil
 	}
 	return func(request Request) Result {
-		if request.Stage != "widget" || request.Widget == nil || !ValidWidgetSurface(request.Widget.Surface) {
+		switch request.Stage {
+		case "widget":
+			return renderWidgetRequest(request, render)
+		case "widget-command":
+			return renderWidgetCommand(request, command)
+		default:
 			return Result{Error: "unsupported widget request"}
 		}
-
-		context := *request.Widget
-		context.Features = request.Features
-		result, err := render(context)
-		if err != nil {
-			return Failure(err)
-		}
-		return result
 	}
+}
+
+// renderWidgetRequest validates and invokes one typed widget render request.
+func renderWidgetRequest(request Request, render func(WidgetContext) (Result, error)) Result {
+	if request.Widget == nil || !ValidWidgetSurface(request.Widget.Surface) {
+		return Result{Error: "unsupported widget request"}
+	}
+	context := *request.Widget
+	context.Features = request.Features
+	result, err := render(context)
+	if err != nil {
+		return Failure(err)
+	}
+	return result
+}
+
+// renderWidgetCommand validates and invokes one typed widget command request.
+func renderWidgetCommand(
+	request Request,
+	command func(WidgetCommandContext) (WidgetCommandResult, error),
+) Result {
+	if command == nil || request.WidgetCommand == nil ||
+		!ValidWidgetSurface(request.WidgetCommand.Surface) || request.WidgetCommand.Action == "" {
+		return Result{Error: "unsupported widget command"}
+	}
+	context := *request.WidgetCommand
+	context.Features = request.Features
+	result, err := command(context)
+	if err != nil {
+		return Failure(err)
+	}
+	return Result{WidgetCommand: &result}
 }
 
 // RegisterMacro hides the parse/render transport and invocation serialization.

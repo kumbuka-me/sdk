@@ -14,6 +14,8 @@ type project struct {
 	manifest pluginpackage.Manifest
 	// files maps package-relative paths to their validated contents.
 	files map[string][]byte
+	// toolchain is the Go toolchain required for executable plugins.
+	toolchain string
 }
 
 // Validate checks the exact runtime manifest schema and project assets before compilation.
@@ -40,29 +42,41 @@ func loadProject(directory string) (project, error) {
 	if err != nil {
 		return project{}, err
 	}
-	if manifest.RequiresWASM() {
-		if _, _, err := findModuleFile(directory); err != nil {
-			return project{}, err
-		}
+	toolchain, err := requiredToolchain(directory, manifest.RequiresWASM())
+	if err != nil {
+		return project{}, err
 	}
 
 	files := map[string][]byte{
 		"README.md":   readme,
 		"plugin.yaml": manifestData,
 	}
-	if err := loadAssets(directory, manifest.RequiresWASM(), files); err != nil {
+	loader := assetLoader{directory: directory, files: files, reservesWASM: manifest.RequiresWASM()}
+	if err := loader.load(); err != nil {
 		return project{}, err
 	}
 	if err := validateModuleAssets(manifest, files); err != nil {
 		return project{}, err
 	}
 
-	return project{manifest: manifest, files: files}, nil
+	return project{manifest: manifest, files: files, toolchain: toolchain}, nil
 }
 
-// loadAssets validates and loads every packaged asset into files.
-func loadAssets(directory string, reservesWASM bool, files map[string][]byte) error {
-	assets := filepath.Join(directory, "assets")
+// assetLoader validates and collects package assets during one directory walk.
+type assetLoader struct {
+	// directory is the plugin project root.
+	directory string
+	// files receives package-relative asset contents.
+	files map[string][]byte
+	// total tracks expanded asset bytes loaded so far.
+	total int
+	// reservesWASM accounts for the compiled guest module in the package file limit.
+	reservesWASM bool
+}
+
+// load validates the assets directory and walks its contents when present.
+func (l *assetLoader) load() error {
+	assets := filepath.Join(l.directory, "assets")
 	info, err := os.Lstat(assets)
 	if os.IsNotExist(err) {
 		return nil
@@ -73,39 +87,40 @@ func loadAssets(directory string, reservesWASM bool, files map[string][]byte) er
 	if !info.IsDir() {
 		return fmt.Errorf("assets must be a real directory")
 	}
+	return filepath.WalkDir(assets, l.visit)
+}
 
-	total := 0
-	return filepath.WalkDir(assets, func(filename string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("asset symlinks are forbidden: %s", filename)
-		}
-		if entry.IsDir() {
-			return nil
-		}
-
-		data, err := readRegular(filename, pluginpackage.MaxAssetBytes)
-		if err != nil {
-			return err
-		}
-		relative, err := filepath.Rel(directory, filename)
-		if err != nil {
-			return err
-		}
-		files[filepath.ToSlash(relative)] = data
-		total += len(data)
-
-		fileCount := len(files)
-		if reservesWASM {
-			fileCount++
-		}
-		if fileCount > pluginpackage.MaxFiles || total > pluginpackage.MaxExpandedBytes {
-			return fmt.Errorf("plugin assets exceed package limits")
-		}
+// visit validates and loads one entry from the plugin assets tree.
+func (l *assetLoader) visit(filename string, entry os.DirEntry, walkErr error) error {
+	if walkErr != nil {
+		return walkErr
+	}
+	if entry.Type()&os.ModeSymlink != 0 {
+		return fmt.Errorf("asset symlinks are forbidden: %s", filename)
+	}
+	if entry.IsDir() {
 		return nil
-	})
+	}
+
+	data, err := readRegular(filename, pluginpackage.MaxAssetBytes)
+	if err != nil {
+		return err
+	}
+	relative, err := filepath.Rel(l.directory, filename)
+	if err != nil {
+		return err
+	}
+	l.files[filepath.ToSlash(relative)] = data
+	l.total += len(data)
+
+	fileCount := len(l.files)
+	if l.reservesWASM {
+		fileCount++
+	}
+	if fileCount > pluginpackage.MaxFiles || l.total > pluginpackage.MaxExpandedBytes {
+		return fmt.Errorf("plugin assets exceed package limits")
+	}
+	return nil
 }
 
 // validateModuleAssets verifies manifest-declared assets against the loaded project files.

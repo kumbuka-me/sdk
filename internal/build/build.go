@@ -24,7 +24,7 @@ func Build(ctx context.Context, directory, destination string) error {
 		return err
 	}
 	if project.manifest.RequiresWASM() {
-		wasm, err := compileWASM(ctx, directory)
+		wasm, err := compileWASM(ctx, directory, project.toolchain)
 		if err != nil {
 			return err
 		}
@@ -41,17 +41,8 @@ func Build(ctx context.Context, directory, destination string) error {
 	return writePackage(destination, archive)
 }
 
-// compileWASM builds one plugin with the Go version declared by its containing module.
-func compileWASM(ctx context.Context, directory string) ([]byte, error) {
-	modulePath, module, err := findModuleFile(directory)
-	if err != nil {
-		return nil, err
-	}
-	toolchain, err := moduleToolchain(module)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", modulePath, err)
-	}
-
+// compileWASM builds one plugin with the validated Go toolchain for its containing module.
+func compileWASM(ctx context.Context, directory, toolchain string) ([]byte, error) {
 	temporary, err := os.MkdirTemp("", "kumbuka-plugin-build-*")
 	if err != nil {
 		return nil, err
@@ -74,18 +65,7 @@ func compileWASM(ctx context.Context, directory string) ([]byte, error) {
 	if output, err := command.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("build %s: %w\n%s", directory, err, output)
 	}
-
 	return readRegular(outputPath, pluginpackage.MaxWASMBytes)
-}
-
-// moduleToolchain returns the Go toolchain selected by a module's go directive.
-func moduleToolchain(module []byte) (string, error) {
-	for _, line := range strings.Split(string(module), "\n") {
-		if value, ok := strings.CutPrefix(strings.TrimSpace(line), "go "); ok {
-			return "go" + strings.TrimSpace(value), nil
-		}
-	}
-	return "", fmt.Errorf("go.mod has no go directive")
 }
 
 // wasmBuildEnvironment returns a clean environment for deterministic WASI compilation.

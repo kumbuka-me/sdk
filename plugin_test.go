@@ -216,3 +216,29 @@ func TestRegisterMacroRejectsNilCallbacks(t *testing.T) {
 	}()
 	RegisterMacro[string]("nil-macro", nil, func(string) (Result, error) { return Result{}, nil })
 }
+
+func TestExporterDispatch(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+
+	RegisterExporter("text", func(context ExportContext) (ExportFile, error) {
+		if context.Page.Slug != "guide" || context.Source != "# Guide" || !context.Features["example.enabled"] {
+			t.Fatalf("unexpected export context: %+v", context)
+		}
+		return ExportFile{Filename: "guide.txt", MediaType: "text/plain", Data: []byte("Guide")}, nil
+	})
+	result := Dispatch(Request{
+		APIVersion: Version,
+		Module:     "text",
+		Stage:      "export",
+		Features:   map[string]bool{"example.enabled": true},
+		Export:     &ExportContext{Page: Page{Slug: "guide"}, Source: "# Guide"},
+	})
+	if result.Error != "" || result.File == nil || result.File.Filename != "guide.txt" {
+		t.Fatalf("export: %+v", result)
+	}
+	if Dispatch(Request{APIVersion: Version, Module: "text", Stage: "export"}).Error == "" {
+		t.Fatal("export request without context accepted")
+	}
+}

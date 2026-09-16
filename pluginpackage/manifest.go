@@ -44,7 +44,7 @@ type Manifest struct {
 func (m Manifest) RequiresWASM() bool {
 	for _, module := range m.Modules {
 		switch module.Type {
-		case "renderer-extension", "macro", "code-highlighter", "widget":
+		case "renderer-extension", "macro", "code-highlighter", "widget", "exporter":
 			return true
 		}
 	}
@@ -322,6 +322,8 @@ func validModule(m Module) bool {
 		return validWidgetModule(m)
 	case "page-action":
 		return validPageActionModule(m)
+	case "exporter":
+		return validExporterModule(m)
 	default:
 		return false
 	}
@@ -340,7 +342,7 @@ func validModuleRenderFields(module Module) bool {
 	if module.Type != "browser-module" && module.JavaScript != "" {
 		return false
 	}
-	if module.Type != "widget" && module.Type != "page-action" && (module.Surface != "" || module.Width != "" || module.Order != 0) {
+	if module.Type != "widget" && module.Type != "page-action" && module.Type != "exporter" && (module.Surface != "" || module.Width != "" || module.Order != 0) {
 		return false
 	}
 	if module.Type != "browser-module" && module.Type != "content-style" && module.Type != "code-highlighter" && module.CSS != "" {
@@ -355,7 +357,7 @@ func validModuleRenderFields(module Module) bool {
 	if module.Type != "render-policy" && module.Policy != "" {
 		return false
 	}
-	if module.Type != "settings" && module.Type != "admin-resource" && module.Type != "editor-insert" && module.Type != "page-action" && module.Description != "" {
+	if module.Type != "settings" && module.Type != "admin-resource" && module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Description != "" {
 		return false
 	}
 	if module.Type != "settings" && len(module.Requires) != 0 {
@@ -393,7 +395,7 @@ func validModuleEditorFields(module Module) bool {
 		module.Mode != "" || module.Group != "" || module.Inline) {
 		return false
 	}
-	if module.Type != "editor-insert" && module.Type != "page-action" && module.Icon != "" {
+	if module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Icon != "" {
 		return false
 	}
 	if module.Type != "page-action" && (module.Kind != "" || module.URL != "") {
@@ -609,6 +611,14 @@ func validPageActionModule(m Module) bool {
 		strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 && len(m.Description) <= 1024 &&
 		(m.Icon == "" || identifier.MatchString(m.Icon)) && (m.Kind == "" || m.Kind == "link" || m.Kind == "dialog") &&
 		m.Order >= -1000 && m.Order <= 1000 && validPageActionURL(m.URL)
+}
+
+// validExporterModule validates one executable page export contribution.
+func validExporterModule(m Module) bool {
+	return m.Stage == "" && m.Capability == "" && m.Surface == "" && m.Width == "" &&
+		strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 && len(m.Description) <= 1024 &&
+		(m.Icon == "" || identifier.MatchString(m.Icon)) && m.Kind == "" && m.URL == "" &&
+		m.Order >= -1000 && m.Order <= 1000
 }
 
 // validPageActionURL accepts bounded local URL templates with page placeholders only.

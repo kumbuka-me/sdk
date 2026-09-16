@@ -503,3 +503,35 @@ permissions: []
 		require.Error(t, err)
 	}
 }
+
+func TestExporterModule(t *testing.T) {
+	manifest := `api_version: 1
+id: io.example.export
+name: Export
+version: 1.0.0
+modules:
+  - type: exporter
+    id: text
+    name: Plain text
+    description: Export the current page as text.
+    icon: file-down-lucide
+    order: 10
+permissions: []
+`
+
+	pkg, err := Read(testArchive(t, manifest))
+	require.NoError(t, err)
+	require.Len(t, pkg.Manifest().Modules, 1)
+	assert.Equal(t, "exporter", pkg.Manifest().Modules[0].Type)
+	assert.True(t, pkg.Manifest().RequiresWASM())
+
+	for _, invalid := range []string{
+		strings.Replace(manifest, "name: Plain text", "name: ''", 1),
+		strings.Replace(manifest, "icon: file-down-lucide", "icon: Bad Icon", 1),
+		strings.Replace(manifest, "order: 10", "order: 1001", 1),
+		strings.Replace(manifest, "order: 10", "url: /download\n    order: 10", 1),
+	} {
+		_, err := Read(testArchive(t, invalid))
+		require.Error(t, err, invalid)
+	}
+}

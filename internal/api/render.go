@@ -25,6 +25,8 @@ type RenderRequest struct {
 	Features map[string]bool `json:"features,omitempty"`
 	// Widget contains the current host surface and page for widget invocations.
 	Widget *WidgetContext `json:"widget,omitempty"`
+	// Export contains the current page and source for exporter invocations.
+	Export *ExportContext `json:"export,omitempty"`
 }
 
 // RenderResult returns intermediate output or an error. Markdown fragments are
@@ -39,8 +41,31 @@ type RenderResult struct {
 	Parts []RenderPart `json:"parts,omitempty"`
 	// Actions contains safe host-rendered controls contributed by a widget.
 	Actions []WidgetAction `json:"actions,omitempty"`
+	// File contains the bounded download produced by an exporter invocation.
+	File *ExportFile `json:"file,omitempty"`
 	// Error contains a guest-visible rendering error when the operation failed.
 	Error string `json:"error,omitempty"`
+}
+
+// ExportContext describes one authorized page export invocation.
+type ExportContext struct {
+	// Page contains public metadata for the page being exported.
+	Page Page `json:"page"`
+	// Source contains the stored Markdown source for the page.
+	Source string `json:"source"`
+	// Features contains request-scoped plugin settings and semantic policy markers.
+	// It is populated by RegisterExporter from the request envelope rather than encoded twice.
+	Features map[string]bool `json:"-"`
+}
+
+// ExportFile is one bounded file returned by an exporter plugin.
+type ExportFile struct {
+	// Filename is the suggested base filename for the browser download.
+	Filename string `json:"filename"`
+	// MediaType is the file's IANA media type.
+	MediaType string `json:"media_type"`
+	// Data contains the complete exported file bytes.
+	Data []byte `json:"data"`
 }
 
 // RenderPart is either literal intermediate output or a recursive Markdown

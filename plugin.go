@@ -60,6 +60,31 @@ func RegisterWidget(id string, render func(WidgetContext) (Result, error)) {
 	RegisterModule(id, widgetHandler(render))
 }
 
+// RegisterExporter registers one page exporter for a manifest exporter module.
+func RegisterExporter(id string, export func(ExportContext) (ExportFile, error)) {
+	RegisterModule(id, exporterHandler(export))
+}
+
+// exporterHandler adapts a typed exporter to the generic module handler contract.
+func exporterHandler(export func(ExportContext) (ExportFile, error)) Handler {
+	if export == nil {
+		return nil
+	}
+	return func(request Request) Result {
+		if request.Stage != "export" || request.Export == nil {
+			return Result{Error: "unsupported exporter request"}
+		}
+
+		context := *request.Export
+		context.Features = request.Features
+		file, err := export(context)
+		if err != nil {
+			return Failure(err)
+		}
+		return Result{File: &file}
+	}
+}
+
 // widgetHandler adapts a typed widget renderer to the generic module handler contract.
 func widgetHandler(render func(WidgetContext) (Result, error)) Handler {
 	if render == nil {

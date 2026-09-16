@@ -10,7 +10,7 @@ NODE_MODULES := node_modules/.package-lock.json
 GOLANGCI_LINT_VERSION ?= v2.13.2
 
 # renovate: datasource=github-releases depName=gi8lino/dev-tools
-DEV_TOOLS_VERSION ?= v0.7.0
+DEV_TOOLS_VERSION ?= v0.9.0
 
 ## Shared development tools
 include bin/dev-tools.mk

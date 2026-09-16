@@ -192,3 +192,27 @@ func TestDashboardCapabilityPermissions(t *testing.T) {
 		t.Fatalf("drafts permission: %q %t", permission, ok)
 	}
 }
+
+func TestRegisterWidgetRejectsNilRenderer(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+	defer func() {
+		if recover() == nil {
+			t.Fatal("nil widget renderer accepted")
+		}
+	}()
+	RegisterWidget("nil-widget", nil)
+}
+
+func TestRegisterMacroRejectsNilCallbacks(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+	defer func() {
+		if recover() == nil {
+			t.Fatal("nil macro callback accepted")
+		}
+	}()
+	RegisterMacro[string]("nil-macro", nil, func(string) (Result, error) { return Result{}, nil })
+}

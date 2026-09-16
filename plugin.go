@@ -14,7 +14,10 @@ var handlers = map[string]Handler{}
 
 // RegisterModule registers a handler for a manifest module. Call during init.
 func RegisterModule(id string, handler Handler) {
-	if id == "" || handler == nil || handlers[id] != nil {
+	if id == "" || handler == nil {
+		panic("invalid or duplicate plugin module registration: " + id)
+	}
+	if _, exists := handlers[id]; exists {
 		panic("invalid or duplicate plugin module registration: " + id)
 	}
 	handlers[id] = handler
@@ -59,6 +62,9 @@ func RegisterWidget(id string, render func(WidgetContext) (Result, error)) {
 
 // widgetHandler adapts a typed widget renderer to the generic module handler contract.
 func widgetHandler(render func(WidgetContext) (Result, error)) Handler {
+	if render == nil {
+		return nil
+	}
 	return func(request Request) Result {
 		if request.Stage != "widget" || request.Widget == nil || !ValidWidgetSurface(request.Widget.Surface) {
 			return Result{Error: "unsupported widget request"}
@@ -81,6 +87,9 @@ func RegisterMacro[T any](id string, parse func(string) (T, bool), render func(T
 
 // macroHandler adapts typed macro parse and render callbacks to module stages.
 func macroHandler[T any](parse func(string) (T, bool), render func(T) (Result, error)) Handler {
+	if parse == nil || render == nil {
+		return nil
+	}
 	return func(request Request) Result {
 		switch request.Stage {
 		case "parse":

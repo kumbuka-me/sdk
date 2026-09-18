@@ -38,6 +38,25 @@ func TestMacroDispatch(t *testing.T) {
 	}
 }
 
+func TestAdminActionDispatch(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+
+	called := false
+	RegisterAdminAction("refresh", func() error {
+		called = true
+		return nil
+	})
+	result := Dispatch(Request{APIVersion: Version, Module: "refresh", Stage: "admin-action"})
+	if result.Error != "" || !called {
+		t.Fatalf("admin action: %+v called=%t", result, called)
+	}
+	if Dispatch(Request{APIVersion: Version, Module: "refresh", Stage: "widget"}).Error == "" {
+		t.Fatal("admin action accepted wrong stage")
+	}
+}
+
 func TestWidgetDispatch(t *testing.T) {
 	previous := handlers
 	handlers = map[string]Handler{}

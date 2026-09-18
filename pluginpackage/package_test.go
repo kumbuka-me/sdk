@@ -471,6 +471,36 @@ permissions:
 	}
 }
 
+func TestAdminActionModule(t *testing.T) {
+	manifest := `api_version: 1
+id: io.example.admin-action
+name: Admin action
+version: 1.0.0
+modules:
+  - type: admin-action
+    id: refresh
+    name: Refresh cache
+    description: Mark cached content stale.
+    icon: refresh-cw-lucide
+permissions: []
+`
+
+	pkg, err := Read(testArchive(t, manifest))
+	require.NoError(t, err)
+	require.Len(t, pkg.Manifest().Modules, 1)
+	assert.Equal(t, "admin-action", pkg.Manifest().Modules[0].Type)
+	assert.True(t, pkg.Manifest().RequiresWASM())
+
+	for _, invalid := range []string{
+		strings.Replace(manifest, "name: Refresh cache", "name: ''", 1),
+		strings.Replace(manifest, "icon: refresh-cw-lucide", "icon: Bad Icon", 1),
+		strings.Replace(manifest, "description: Mark cached content stale.", "stage: preprocess\n    description: Mark cached content stale.", 1),
+	} {
+		_, err := Read(testArchive(t, invalid))
+		require.Error(t, err, invalid)
+	}
+}
+
 func TestPageActionModule(t *testing.T) {
 	manifest := `api_version: 1
 id: io.example.actions

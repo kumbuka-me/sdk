@@ -55,6 +55,27 @@ func Failure(err error) Result {
 	return Result{Error: err.Error()}
 }
 
+// RegisterAdminAction registers one explicit administrator-triggered plugin operation.
+func RegisterAdminAction(id string, run func() error) {
+	RegisterModule(id, adminActionHandler(run))
+}
+
+// adminActionHandler adapts one administrator action to the generic module handler contract.
+func adminActionHandler(run func() error) Handler {
+	if run == nil {
+		return nil
+	}
+	return func(request Request) Result {
+		if request.Stage != "admin-action" {
+			return Result{Error: "unsupported admin action request"}
+		}
+		if err := run(); err != nil {
+			return Failure(err)
+		}
+		return Result{}
+	}
+}
+
 // RegisterWidget registers a widget renderer for one manifest widget module.
 func RegisterWidget(id string, render func(WidgetContext) (Result, error)) {
 	RegisterModule(id, widgetHandler(render, nil))

@@ -44,7 +44,7 @@ type Manifest struct {
 func (m Manifest) RequiresWASM() bool {
 	for _, module := range m.Modules {
 		switch module.Type {
-		case "renderer-extension", "macro", "code-highlighter", "widget", "exporter":
+		case "renderer-extension", "macro", "code-highlighter", "widget", "exporter", "admin-action":
 			return true
 		}
 	}
@@ -314,6 +314,8 @@ func validModule(m Module) bool {
 		return validMacroModule(m)
 	case "admin-resource":
 		return validAdminResourceModule(m)
+	case "admin-action":
+		return validAdminActionModule(m)
 	case "content-substitution":
 		return validContentSubstitutionModule(m)
 	case "editor-completion":
@@ -361,7 +363,7 @@ func validModuleRenderFields(module Module) bool {
 	if module.Type != "render-policy" && module.Policy != "" {
 		return false
 	}
-	if module.Type != "settings" && module.Type != "admin-resource" && module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Description != "" {
+	if module.Type != "settings" && module.Type != "admin-resource" && module.Type != "admin-action" && module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Description != "" {
 		return false
 	}
 	if module.Type != "settings" && len(module.Requires) != 0 {
@@ -399,7 +401,7 @@ func validModuleEditorFields(module Module) bool {
 		module.Mode != "" || module.Group != "" || module.Inline) {
 		return false
 	}
-	if module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Icon != "" {
+	if module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Type != "admin-action" && module.Icon != "" {
 		return false
 	}
 	if module.Type != "page-action" && (module.Kind != "" || module.URL != "") {
@@ -672,6 +674,13 @@ func validEditorInsertModule(m Module) bool {
 func validWidgetModule(m Module) bool {
 	return m.Stage == "" && m.Name == "" && m.Description == "" && m.Capability == "" &&
 		api.ValidWidgetSurface(m.Surface) && api.ValidWidgetWidth(m.Width) && m.Order >= -1000 && m.Order <= 1000
+}
+
+// validAdminActionModule validates one executable administrator action.
+func validAdminActionModule(m Module) bool {
+	return m.Stage == "" && m.Capability == "" && m.Surface == "" && m.Width == "" && m.Order == 0 &&
+		strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 && len(m.Description) <= 1024 &&
+		(m.Icon == "" || identifier.MatchString(m.Icon))
 }
 
 // validPageActionModule validates one host-rendered current-page navigation action.

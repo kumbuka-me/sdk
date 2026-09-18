@@ -29,8 +29,14 @@ func Drafts() DraftClient { return NewClient(nil).Drafts() }
 // Settings returns this plugin's settings namespace.
 func Settings() Values { return NewClient(nil).Settings() }
 
+// Resources returns manifest-declared structured settings owned by this plugin.
+func Resources() ResourceClient { return NewClient(nil).Resources() }
+
 // Storage returns this plugin's data namespace.
 func Storage() Values { return NewClient(nil).Storage() }
+
+// HTTP returns the bounded outbound HTTP client provided by Kumbuka.
+func HTTP() HTTPClient { return NewClient(nil).HTTP() }
 
 // Attachments returns the host attachment capability.
 func Attachments() AttachmentClient { return NewClient(nil).Attachments() }
@@ -50,8 +56,14 @@ func (c Client) Drafts() DraftClient { return DraftClient{client: c} }
 // Settings returns the calling plugin's settings namespace.
 func (c Client) Settings() Values { return Values{client: c, method: "plugin.settings"} }
 
+// Resources returns structured settings declared by the calling plugin.
+func (c Client) Resources() ResourceClient { return ResourceClient{client: c} }
+
 // Storage returns the calling plugin's data namespace.
 func (c Client) Storage() Values { return Values{client: c, method: "plugin.storage"} }
+
+// HTTP returns outbound HTTP operations on this client.
+func (c Client) HTTP() HTTPClient { return HTTPClient{client: c} }
 
 // Attachments returns attachment operations on this client.
 func (c Client) Attachments() AttachmentClient { return AttachmentClient{client: c} }
@@ -163,6 +175,33 @@ func (v Values) Set(key string, value []byte) error {
 	return v.client.call(v.method+".write", StorageValue{Key: key, Value: value}, nil)
 }
 
+// ResourceClient reads structured plugin settings declared as admin resources.
+type ResourceClient struct {
+	// client carries the host capability transport.
+	client Client
+}
+
+// Get returns one configured resource record, including decrypted secret fields.
+func (r ResourceClient) Get(resource, key string) (PluginResourceRecord, error) {
+	return callResult[PluginResourceRecord](r.client, "plugin.resources.get", PluginResourceRequest{Resource: resource, Key: key})
+}
+
+// List returns configured records for one resource in deterministic key order.
+func (r ResourceClient) List(resource string) ([]PluginResourceRecord, error) {
+	return callResult[[]PluginResourceRecord](r.client, "plugin.resources.list", PluginResourceListRequest{Resource: resource})
+}
+
+// HTTPClient performs bounded outbound HTTP through Kumbuka's host network policy.
+type HTTPClient struct {
+	// client carries the host capability transport.
+	client Client
+}
+
+// Do performs one bounded HTTP request through the Kumbuka host.
+func (h HTTPClient) Do(request HTTPRequest) (HTTPResponse, error) {
+	return callResult[HTTPResponse](h.client, "http.do", request)
+}
+
 // AttachmentClient reads attachments authorized by the current request scope.
 type AttachmentClient struct {
 	// client carries the host capability transport.
@@ -172,18 +211,4 @@ type AttachmentClient struct {
 // Read requests a bounded attachment byte range.
 func (a AttachmentClient) Read(request AttachmentRead) (Attachment, error) {
 	return callResult[Attachment](a.client, "attachments.read", request)
-}
-
-// ExternalFiles returns the approved repository file capability.
-func ExternalFiles() ExternalFileClient { return NewClient(nil).ExternalFiles() }
-
-// ExternalFiles returns the approved repository file capability on this client.
-func (c Client) ExternalFiles() ExternalFileClient { return ExternalFileClient{client: c} }
-
-// ExternalFileClient reads files through host-managed credentials and approval.
-type ExternalFileClient struct{ client Client }
-
-// Read retrieves bounded plain text. The host applies source and network policy.
-func (c ExternalFileClient) Read(request ExternalFileRequest) (ExternalFile, error) {
-	return callResult[ExternalFile](c.client, "external.files.read", request)
 }

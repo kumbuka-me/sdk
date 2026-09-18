@@ -70,7 +70,7 @@ type PageLinks struct {
 	Outgoing []PageLink
 }
 
-// RevisionQuery selects bounded revision metadata for one page.
+// RevisionQuery selects bounded page revision metadata for one page.
 type RevisionQuery struct {
 	// Slug is the canonical page path.
 	Slug string
@@ -78,7 +78,7 @@ type RevisionQuery struct {
 	Limit int
 }
 
-// Revision contains public revision metadata without stored page bodies.
+// Revision contains public page revision metadata without stored page bodies.
 type Revision struct {
 	// Number is the monotonically increasing revision number.
 	Number int
@@ -178,6 +178,54 @@ type StoredValue struct {
 	Found bool
 }
 
+// PluginResourceRequest selects one record from a manifest-declared admin resource.
+type PluginResourceRequest struct {
+	// Resource identifies the admin-resource module in the calling plugin.
+	Resource string `json:"resource"`
+	// Key identifies the record by its declared key field.
+	Key string `json:"key"`
+}
+
+// PluginResourceListRequest selects all records from one manifest-declared admin resource.
+type PluginResourceListRequest struct {
+	// Resource identifies the admin-resource module in the calling plugin.
+	Resource string `json:"resource"`
+}
+
+// PluginResourceRecord contains one plugin-owned structured setting record.
+type PluginResourceRecord struct {
+	// Key is the canonical record key.
+	Key string `json:"key"`
+	// Values contains field values keyed by manifest field ID, including decrypted secrets.
+	Values map[string]string `json:"values"`
+}
+
+// HTTPRequest describes one bounded outbound HTTP request performed by the Kumbuka host.
+type HTTPRequest struct {
+	// Method is an HTTP method such as GET or POST.
+	Method string `json:"method"`
+	// URL is the absolute HTTP or HTTPS destination.
+	URL string `json:"url"`
+	// Headers contains application-level request headers supplied by the plugin.
+	Headers map[string]string `json:"headers,omitempty"`
+	// Body contains the optional request payload.
+	Body []byte `json:"body,omitempty"`
+	// AllowedPrivateIPs lists exact administrator-configured private addresses that may be dialed.
+	AllowedPrivateIPs []string `json:"allowed_private_ips,omitempty"`
+	// InsecureSkipVerify disables origin TLS certificate verification when separately permitted.
+	InsecureSkipVerify bool `json:"insecure_skip_verify,omitempty"`
+}
+
+// HTTPResponse contains one bounded response returned by the Kumbuka HTTP host capability.
+type HTTPResponse struct {
+	// StatusCode is the upstream HTTP status code.
+	StatusCode int `json:"status_code"`
+	// Headers contains bounded upstream response headers.
+	Headers map[string][]string `json:"headers,omitempty"`
+	// Body contains the bounded upstream response payload.
+	Body []byte `json:"body,omitempty"`
+}
+
 // IconRequest identifies an icon that Kumbuka should render for a plugin.
 type IconRequest struct {
 	// Name identifies the icon to render.
@@ -205,11 +253,9 @@ func PermissionFor(method string) (string, bool) {
 		return "drafts:read", true
 	case "pages.content":
 		return "pages:content", true
-	case "external.files.read":
-		return "external:read", true
 	case "attachments.read":
 		return "attachments:read", true
-	case "plugin.settings.read":
+	case "plugin.settings.read", "plugin.resources.get", "plugin.resources.list":
 		return "settings:read", true
 	case "plugin.settings.write":
 		return "settings:write", true
@@ -217,6 +263,8 @@ func PermissionFor(method string) (string, bool) {
 		return "storage:read", true
 	case "plugin.storage.write":
 		return "storage:write", true
+	case "http.do":
+		return "network:http", true
 	case "icons.render", "log":
 		return "", true
 	default:
@@ -227,8 +275,9 @@ func PermissionFor(method string) (string, bool) {
 // ValidPermission reports whether permission is valid.
 func ValidPermission(permission string) bool {
 	switch permission {
-	case "external:read", "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read",
-		"attachments:read", "settings:read", "settings:write", "storage:read", "storage:write":
+	case "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read",
+		"attachments:read", "settings:read", "settings:write", "storage:read", "storage:write",
+		"network:http", "network:private", "network:insecure-tls":
 		return true
 	default:
 		return false
@@ -254,20 +303,4 @@ type Attachment struct {
 	Size int64
 	// Data contains the requested attachment byte range.
 	Data []byte
-}
-
-// ExternalFileRequest selects a file from a host-approved source. No URLs,
-// credentials, repository names or caller identities are accepted from guests.
-type ExternalFileRequest struct {
-	Source string `json:"source"`
-	Path   string `json:"path"`
-	// Start and End are inclusive, one-based. Both zero selects the whole file.
-	Start int `json:"start,omitempty"`
-	End   int `json:"end,omitempty"`
-}
-
-// ExternalFile contains bounded UTF-8 plain text, never trusted Markdown or HTML.
-type ExternalFile struct {
-	Content string `json:"content"`
-	Start   int    `json:"start"`
 }

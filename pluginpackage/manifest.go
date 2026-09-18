@@ -62,10 +62,14 @@ type ResourceField struct {
 	Type string `yaml:"type"`
 	// Required reports whether the field may be empty.
 	Required bool `yaml:"required,omitempty"`
-	// Key identifies the unique record key field. Exactly one field must be the key.
+	// Key identifies the unique record key field. Exactly one text field must be the key.
 	Key bool `yaml:"key,omitempty"`
 	// MaxBytes bounds the UTF-8 encoded field value. Zero selects a host default.
 	MaxBytes int `yaml:"max_bytes,omitempty"`
+	// Default is the initial value shown when an administrator creates a record.
+	Default string `yaml:"default,omitempty"`
+	// Options contains the allowed values for a select field.
+	Options []string `yaml:"options,omitempty"`
 }
 
 // UsageRule declares a cheap source selector used to avoid invoking a module
@@ -542,13 +546,60 @@ func validResourceField(field ResourceField, seen map[string]bool) bool {
 	if !identifier.MatchString(field.ID) || seen[field.ID] || strings.TrimSpace(field.Name) == "" || len(field.Name) > 128 {
 		return false
 	}
-	if field.Type != "text" && field.Type != "textarea" {
+	if field.MaxBytes < 0 || field.MaxBytes > 64<<10 || (field.Key && field.Type != "text") {
 		return false
 	}
-	if field.MaxBytes < 0 || field.MaxBytes > 64<<10 {
+
+	switch field.Type {
+	case "text", "textarea", "url":
+		return len(field.Options) == 0 && validResourceDefault(field)
+	case "secret":
+		return len(field.Options) == 0 && field.Default == "" && !field.Key
+	case "boolean":
+		return len(field.Options) == 0 && (field.Default == "" || field.Default == "true" || field.Default == "false") && !field.Key
+	case "select":
+		return validResourceOptions(field) && !field.Key
+	default:
 		return false
 	}
-	return !field.Key || field.Type == "text"
+}
+
+// validResourceDefault validates a bounded default value for scalar resource fields.
+func validResourceDefault(field ResourceField) bool {
+	if !utf8.ValidString(field.Default) || strings.ContainsRune(field.Default, '\x00') {
+		return false
+	}
+	limit := field.MaxBytes
+	if limit == 0 {
+		if field.Type == "textarea" {
+			limit = 48 << 10
+		} else {
+			limit = 4096
+		}
+	}
+	if len(field.Default) > limit {
+		return false
+	}
+	if field.Type != "url" || field.Default == "" {
+		return true
+	}
+	parsed, err := url.ParseRequestURI(field.Default)
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+}
+
+// validResourceOptions validates the bounded option set and optional default of a select field.
+func validResourceOptions(field ResourceField) bool {
+	if len(field.Options) == 0 || len(field.Options) > 32 {
+		return false
+	}
+	seen := make(map[string]bool, len(field.Options))
+	for _, option := range field.Options {
+		if strings.TrimSpace(option) != option || option == "" || len(option) > 128 || !utf8.ValidString(option) || seen[option] {
+			return false
+		}
+		seen[option] = true
+	}
+	return field.Default == "" || seen[field.Default]
 }
 
 // validContentSubstitutionModule validates a resource-backed inline Markdown substitution.
@@ -668,13 +719,20 @@ func validateModuleReference(module Module, byID map[string]Module) error {
 		return fmt.Errorf("module %s references unknown admin resource %s", module.ID, module.Resource)
 	}
 
-	fields := make(map[string]bool, len(resource.Fields))
+	fields := make(map[string]ResourceField, len(resource.Fields))
 	for _, field := range resource.Fields {
-		fields[field.ID] = true
+		fields[field.ID] = field
 	}
-	for _, field := range []string{module.ValueField, module.LabelField, module.DetailField} {
-		if field != "" && !fields[field] {
-			return fmt.Errorf("module %s references unknown resource field %s", module.ID, field)
+	for _, fieldID := range []string{module.ValueField, module.LabelField, module.DetailField} {
+		if fieldID == "" {
+			continue
+		}
+		field, ok := fields[fieldID]
+		if !ok {
+			return fmt.Errorf("module %s references unknown resource field %s", module.ID, fieldID)
+		}
+		if field.Type == "secret" {
+			return fmt.Errorf("module %s cannot expose secret resource field %s", module.ID, fieldID)
 		}
 	}
 	if module.Type == "editor-completion" {

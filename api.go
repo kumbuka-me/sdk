@@ -7,14 +7,21 @@ import "github.com/kumbuka-me/sdk/internal/api"
 const Version = api.Version
 
 type (
-	// ExternalFileRequest selects a host-approved external file.
-	ExternalFileRequest = api.ExternalFileRequest
-	// ExternalFile contains bounded plain text from an approved source.
-	ExternalFile = api.ExternalFile
 	// CapabilityRequest is the low-level host capability request envelope.
 	CapabilityRequest = api.CapabilityRequest
 	// CapabilityResponse is the low-level host capability response envelope.
 	CapabilityResponse = api.CapabilityResponse
+
+	// PluginResourceRequest selects one structured plugin setting record.
+	PluginResourceRequest = api.PluginResourceRequest
+	// PluginResourceListRequest selects all records from one structured plugin setting resource.
+	PluginResourceListRequest = api.PluginResourceListRequest
+	// PluginResourceRecord contains one structured plugin setting record.
+	PluginResourceRecord = api.PluginResourceRecord
+	// HTTPRequest describes one bounded outbound HTTP request.
+	HTTPRequest = api.HTTPRequest
+	// HTTPResponse contains one bounded outbound HTTP response.
+	HTTPResponse = api.HTTPResponse
 
 	// Request is a render invocation supplied by Kumbuka.
 	Request = api.RenderRequest

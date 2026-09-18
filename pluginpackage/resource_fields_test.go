@@ -2,8 +2,8 @@ package pluginpackage
 
 import "testing"
 
-// TestResourceFieldTypes verifies typed resource schemas and secret defaults.
-func TestResourceFieldTypes(t *testing.T) {
+// TestConfigurationFieldTypes verifies typed configuration schemas and secret defaults.
+func TestConfigurationFieldTypes(t *testing.T) {
 	manifest := Manifest{
 		APIVersion: 1,
 		ID:         "com.example.settings",
@@ -13,7 +13,7 @@ func TestResourceFieldTypes(t *testing.T) {
 			Type: "admin-resource",
 			ID:   "sources",
 			Name: "Sources",
-			Fields: []ResourceField{
+			Fields: []ConfigurationField{
 				{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
 				{ID: "endpoint", Name: "Endpoint", Type: "url"},
 				{ID: "token", Name: "Token", Type: "secret"},

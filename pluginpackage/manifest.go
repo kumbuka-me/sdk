@@ -52,9 +52,9 @@ func (m Manifest) RequiresWASM() bool {
 	return false
 }
 
-// ResourceField declares one field in a plugin-owned admin resource.
-type ResourceField struct {
-	// ID identifies the field in stored records.
+// ConfigurationField declares one bounded field in host-rendered plugin configuration.
+type ConfigurationField struct {
+	// ID identifies the field within its settings group or resource record.
 	ID string `yaml:"id"`
 	// Name is the human-readable field label.
 	Name string `yaml:"name"`
@@ -62,11 +62,11 @@ type ResourceField struct {
 	Type string `yaml:"type"`
 	// Required reports whether the field may be empty.
 	Required bool `yaml:"required,omitempty"`
-	// Key identifies the unique record key field. Exactly one text field must be the key.
+	// Key identifies the unique record key field for repeatable admin resources.
 	Key bool `yaml:"key,omitempty"`
 	// MaxBytes bounds the UTF-8 encoded field value. Zero selects a host default.
 	MaxBytes int `yaml:"max_bytes,omitempty"`
-	// Default is the initial value shown when an administrator creates a record.
+	// Default is the value used before an administrator saves an explicit value.
 	Default string `yaml:"default,omitempty"`
 	// Options contains the allowed values for a select field.
 	Options []string `yaml:"options,omitempty"`
@@ -119,8 +119,8 @@ type Module struct {
 	Policy string `yaml:"policy,omitempty"`
 	// Priority orders content preprocessors. Lower values run first.
 	Priority int `yaml:"priority,omitempty"`
-	// Fields declares a bounded schema for admin-resource records.
-	Fields []ResourceField `yaml:"fields,omitempty"`
+	// Fields declares a bounded schema for structured settings or admin-resource records.
+	Fields []ConfigurationField `yaml:"fields,omitempty"`
 	// Resource identifies another module in this package that owns persisted records.
 	Resource string `yaml:"resource,omitempty"`
 	// Prefix identifies the inline macro prefix handled by a content-substitution module.
@@ -337,7 +337,7 @@ func validModule(m Module) bool {
 func validModuleFields(module Module) bool {
 	return validUsageRules(module) &&
 		validModuleRenderFields(module) &&
-		validModuleResourceFields(module) &&
+		validModuleConfigurationFields(module) &&
 		validModuleEditorFields(module)
 }
 
@@ -370,12 +370,12 @@ func validModuleRenderFields(module Module) bool {
 	return true
 }
 
-// validModuleResourceFields checks resource, substitution, and priority fields.
-func validModuleResourceFields(module Module) bool {
+// validModuleConfigurationFields checks structured configuration, substitution, and priority fields.
+func validModuleConfigurationFields(module Module) bool {
 	if module.Type != "renderer-extension" && module.Type != "content-substitution" && module.Priority != 0 {
 		return false
 	}
-	if module.Type != "admin-resource" && len(module.Fields) != 0 {
+	if module.Type != "admin-resource" && module.Type != "settings" && len(module.Fields) != 0 {
 		return false
 	}
 	if module.Type != "content-substitution" && module.Type != "editor-completion" && module.Resource != "" {
@@ -475,9 +475,27 @@ func validCodeHighlighterModule(m Module) bool {
 	return m.Stage == "" && m.Name == "" && m.Capability == "" && validCSS
 }
 
-// validSettingsModule validates fields specific to a settings declaration.
+// validSettingsModule validates either one boolean feature toggle or one typed singleton settings group.
 func validSettingsModule(m Module) bool {
-	return m.Stage == "" && m.Capability == "" && len(m.Name) > 0 && len(m.Name) <= 128 && len(m.Description) <= 1024
+	if m.Stage != "" || m.Capability != "" || len(m.Name) == 0 || len(m.Name) > 128 || len(m.Description) > 1024 {
+		return false
+	}
+	if len(m.Fields) == 0 {
+		return true
+	}
+	if len(m.Requires) != 0 || len(m.Fields) > 16 {
+		return false
+	}
+
+	seen := make(map[string]bool, len(m.Fields))
+	for _, field := range m.Fields {
+		if field.Key || !validConfigurationField(field, seen) {
+			return false
+		}
+		seen[field.ID] = true
+	}
+
+	return true
 }
 
 // validContentStyleModule validates a stylesheet scoped to rendered page content.
@@ -530,7 +548,7 @@ func validAdminResourceModule(module Module) bool {
 	seen := make(map[string]bool, len(module.Fields))
 	keys := 0
 	for _, field := range module.Fields {
-		if !validResourceField(field, seen) {
+		if !validConfigurationField(field, seen) {
 			return false
 		}
 		seen[field.ID] = true
@@ -541,8 +559,8 @@ func validAdminResourceModule(module Module) bool {
 	return keys == 1
 }
 
-// validResourceField validates one bounded admin-resource field.
-func validResourceField(field ResourceField, seen map[string]bool) bool {
+// validConfigurationField validates one bounded structured configuration field.
+func validConfigurationField(field ConfigurationField, seen map[string]bool) bool {
 	if !identifier.MatchString(field.ID) || seen[field.ID] || strings.TrimSpace(field.Name) == "" || len(field.Name) > 128 {
 		return false
 	}
@@ -552,20 +570,20 @@ func validResourceField(field ResourceField, seen map[string]bool) bool {
 
 	switch field.Type {
 	case "text", "textarea", "url":
-		return len(field.Options) == 0 && validResourceDefault(field)
+		return len(field.Options) == 0 && validConfigurationDefault(field)
 	case "secret":
 		return len(field.Options) == 0 && field.Default == "" && !field.Key
 	case "boolean":
 		return len(field.Options) == 0 && (field.Default == "" || field.Default == "true" || field.Default == "false") && !field.Key
 	case "select":
-		return validResourceOptions(field) && !field.Key
+		return validConfigurationOptions(field) && !field.Key
 	default:
 		return false
 	}
 }
 
-// validResourceDefault validates a bounded default value for scalar resource fields.
-func validResourceDefault(field ResourceField) bool {
+// validConfigurationDefault validates a bounded default value for scalar configuration fields.
+func validConfigurationDefault(field ConfigurationField) bool {
 	if !utf8.ValidString(field.Default) || strings.ContainsRune(field.Default, '\x00') {
 		return false
 	}
@@ -587,8 +605,8 @@ func validResourceDefault(field ResourceField) bool {
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }
 
-// validResourceOptions validates the bounded option set and optional default of a select field.
-func validResourceOptions(field ResourceField) bool {
+// validConfigurationOptions validates the bounded option set and optional default of a select field.
+func validConfigurationOptions(field ConfigurationField) bool {
 	if len(field.Options) == 0 || len(field.Options) > 32 {
 		return false
 	}
@@ -719,7 +737,7 @@ func validateModuleReference(module Module, byID map[string]Module) error {
 		return fmt.Errorf("module %s references unknown admin resource %s", module.ID, module.Resource)
 	}
 
-	fields := make(map[string]ResourceField, len(resource.Fields))
+	fields := make(map[string]ConfigurationField, len(resource.Fields))
 	for _, field := range resource.Fields {
 		fields[field.ID] = field
 	}
@@ -745,13 +763,13 @@ func validateModuleReference(module Module, byID map[string]Module) error {
 }
 
 // resourceKeyField returns the validated unique key field for a resource module.
-func resourceKeyField(module Module) ResourceField {
+func resourceKeyField(module Module) ConfigurationField {
 	for _, field := range module.Fields {
 		if field.Key {
 			return field
 		}
 	}
-	return ResourceField{}
+	return ConfigurationField{}
 }
 
 // validateModuleDependencies validates settings-module dependency references and cycles.

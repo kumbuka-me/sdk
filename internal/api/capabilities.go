@@ -205,6 +205,8 @@ func PermissionFor(method string) (string, bool) {
 		return "drafts:read", true
 	case "pages.content":
 		return "pages:content", true
+	case "external.files.read":
+		return "external:read", true
 	case "attachments.read":
 		return "attachments:read", true
 	case "plugin.settings.read":
@@ -225,7 +227,7 @@ func PermissionFor(method string) (string, bool) {
 // ValidPermission reports whether permission is valid.
 func ValidPermission(permission string) bool {
 	switch permission {
-	case "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read",
+	case "external:read", "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read",
 		"attachments:read", "settings:read", "settings:write", "storage:read", "storage:write":
 		return true
 	default:
@@ -252,4 +254,20 @@ type Attachment struct {
 	Size int64
 	// Data contains the requested attachment byte range.
 	Data []byte
+}
+
+// ExternalFileRequest selects a file from a host-approved source. No URLs,
+// credentials, repository names or caller identities are accepted from guests.
+type ExternalFileRequest struct {
+	Source string `json:"source"`
+	Path   string `json:"path"`
+	// Start and End are inclusive, one-based. Both zero selects the whole file.
+	Start int `json:"start,omitempty"`
+	End   int `json:"end,omitempty"`
+}
+
+// ExternalFile contains bounded UTF-8 plain text, never trusted Markdown or HTML.
+type ExternalFile struct {
+	Content string `json:"content"`
+	Start   int    `json:"start"`
 }

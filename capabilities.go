@@ -173,3 +173,17 @@ type AttachmentClient struct {
 func (a AttachmentClient) Read(request AttachmentRead) (Attachment, error) {
 	return callResult[Attachment](a.client, "attachments.read", request)
 }
+
+// ExternalFiles returns the approved repository file capability.
+func ExternalFiles() ExternalFileClient { return NewClient(nil).ExternalFiles() }
+
+// ExternalFiles returns the approved repository file capability on this client.
+func (c Client) ExternalFiles() ExternalFileClient { return ExternalFileClient{client: c} }
+
+// ExternalFileClient reads files through host-managed credentials and approval.
+type ExternalFileClient struct{ client Client }
+
+// Read retrieves bounded plain text. The host applies source and network policy.
+func (c ExternalFileClient) Read(request ExternalFileRequest) (ExternalFile, error) {
+	return callResult[ExternalFile](c.client, "external.files.read", request)
+}

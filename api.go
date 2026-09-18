@@ -7,6 +7,10 @@ import "github.com/kumbuka-me/sdk/internal/api"
 const Version = api.Version
 
 type (
+	// ExternalFileRequest selects a host-approved external file.
+	ExternalFileRequest = api.ExternalFileRequest
+	// ExternalFile contains bounded plain text from an approved source.
+	ExternalFile = api.ExternalFile
 	// CapabilityRequest is the low-level host capability request envelope.
 	CapabilityRequest = api.CapabilityRequest
 	// CapabilityResponse is the low-level host capability response envelope.

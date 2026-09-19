@@ -565,3 +565,30 @@ permissions: []
 		require.Error(t, err, invalid)
 	}
 }
+
+func TestManifestConfigurationOptionsAreIndependent(t *testing.T) {
+	t.Parallel()
+	manifest := `api_version: 1
+id: io.example.options
+name: Options
+version: 1.0.0
+modules:
+  - type: settings
+    id: settings
+    name: Settings
+    fields:
+      - id: theme
+        name: Theme
+        type: select
+        options: [light, dark]
+permissions: []
+`
+	data := testArchiveWithoutWASM(t, manifest)
+	pkg, err := Read(data)
+	require.NoError(t, err)
+	copy := pkg.Manifest()
+	copy.Modules[0].Fields[0].Options[0] = "changed"
+	cached, err := Read(data)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"light", "dark"}, cached.Manifest().Modules[0].Fields[0].Options)
+}

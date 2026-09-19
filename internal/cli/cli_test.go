@@ -3,6 +3,10 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,4 +34,25 @@ func TestPluginGoMod(t *testing.T) {
 	assert.Contains(t, got, "module example.com/example")
 	assert.Contains(t, got, "require github.com/kumbuka-me/sdk v0.1.0")
 	assert.Contains(t, got, "replace github.com/kumbuka-me/sdk => /tmp/sdk")
+}
+
+func TestLocalSDKPathWithSpacesProducesValidModule(t *testing.T) {
+	directory := filepath.Join(t.TempDir(), "SDK checkout with spaces")
+	require.NoError(t, os.Mkdir(directory, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "go.mod"), []byte("module "+sdkModule+"\n\ngo 1.27.0\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "plugin.go"), []byte("package sdk\n"), 0o600))
+	version, replacement, err := resolveSDKPath(directory)
+	require.NoError(t, err)
+	project := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(project, "go.mod"), []byte(pluginGoMod("sample", version, replacement)), 0o600))
+	command := exec.Command("go", "mod", "edit", "-json")
+	command.Dir = project
+	output, err := command.CombinedOutput()
+	require.NoError(t, err, string(output))
+	var module struct {
+		Replace []struct{ New struct{ Path string } }
+	}
+	require.NoError(t, json.Unmarshal(output, &module))
+	require.Len(t, module.Replace, 1)
+	assert.Equal(t, filepath.ToSlash(directory), module.Replace[0].New.Path)
 }

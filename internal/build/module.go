@@ -3,6 +3,7 @@ package build
 import (
 	"errors"
 	"fmt"
+	"go/version"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,9 +30,20 @@ func requiredToolchain(directory string, required bool) (string, error) {
 // moduleToolchain returns the Go toolchain selected by a module's go directive.
 func moduleToolchain(module []byte) (string, error) {
 	for _, line := range strings.Split(string(module), "\n") {
-		if value, ok := strings.CutPrefix(strings.TrimSpace(line), "go "); ok {
-			return "go" + strings.TrimSpace(value), nil
+		line, _, _ = strings.Cut(line, "//")
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != "go" {
+			continue
 		}
+		if len(fields) != 2 || !version.IsValid("go"+fields[1]) {
+			return "", fmt.Errorf("go.mod has an invalid go directive")
+		}
+		toolchain := "go" + fields[1]
+		// Modern language versions omit the patch suffix required by toolchain downloads.
+		if version.Compare(toolchain, "go1.21") >= 0 && toolchain == version.Lang(toolchain) {
+			toolchain += ".0"
+		}
+		return toolchain, nil
 	}
 	return "", fmt.Errorf("go.mod has no go directive")
 }

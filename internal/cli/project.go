@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	sdk "github.com/kumbuka-me/sdk"
@@ -108,7 +109,7 @@ func resolveSDKPath(path string) (string, string, error) {
 	if err := validateSDKCheckout(absolute); err != nil {
 		return "", "", err
 	}
-	return "v0.0.0", fmt.Sprintf("replace %s => %s", sdkModule, filepath.ToSlash(absolute)), nil
+	return "v0.0.0", fmt.Sprintf("replace %s => %s", sdkModule, strconv.Quote(filepath.ToSlash(absolute))), nil
 }
 
 // resolveSDKVersion validates or resolves the requested SDK module version.

@@ -25,6 +25,8 @@ type Manifest struct {
 	ID string `yaml:"id"`
 	// Name is the human-readable name.
 	Name string `yaml:"name"`
+	// Icon is the optional host icon used for plugin identity in administration.
+	Icon string `yaml:"icon,omitempty"`
 	// Version identifies the associated plugin version.
 	Version string `yaml:"version"`
 	// Description is optional human-readable plugin metadata.
@@ -216,6 +218,9 @@ func validateManifestMetadata(manifest Manifest) error {
 	}
 	if !validPluginIdentity(manifest) {
 		return errors.New("invalid plugin identity or version")
+	}
+	if manifest.Icon != "" && !identifier.MatchString(manifest.Icon) {
+		return errors.New("invalid plugin icon")
 	}
 	if len(manifest.Provider) > 128 {
 		return errors.New("plugin provider is too long")

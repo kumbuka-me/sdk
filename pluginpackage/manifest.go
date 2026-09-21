@@ -72,6 +72,10 @@ type ConfigurationField struct {
 	Default string `yaml:"default,omitempty"`
 	// Options contains the allowed values for a select field.
 	Options []string `yaml:"options,omitempty"`
+	// MaxItems bounds the number of rows accepted by a list field. Zero selects a host default.
+	MaxItems int `yaml:"max_items,omitempty"`
+	// Columns declares the structured columns rendered for each row of a list field.
+	Columns []ConfigurationField `yaml:"columns,omitempty"`
 }
 
 // UsageRule declares a cheap source selector used to avoid invoking a module
@@ -496,7 +500,7 @@ func validSettingsModule(m Module) bool {
 
 	seen := make(map[string]bool, len(m.Fields))
 	for _, field := range m.Fields {
-		if field.Key || !validConfigurationField(field, seen) {
+		if field.Key || field.Type == "list" || !validConfigurationField(field, seen) {
 			return false
 		}
 		seen[field.ID] = true
@@ -571,22 +575,62 @@ func validConfigurationField(field ConfigurationField, seen map[string]bool) boo
 	if !identifier.MatchString(field.ID) || seen[field.ID] || strings.TrimSpace(field.Name) == "" || len(field.Name) > 128 {
 		return false
 	}
-	if field.MaxBytes < 0 || field.MaxBytes > 64<<10 || (field.Key && field.Type != "text") {
+	if field.MaxBytes < 0 || field.MaxBytes > 64<<10 || field.MaxItems < 0 || field.MaxItems > 64 || (field.Key && field.Type != "text") {
+		return false
+	}
+	if field.Type != "list" && (field.MaxItems != 0 || len(field.Columns) != 0) {
 		return false
 	}
 
 	switch field.Type {
 	case "text", "textarea", "url":
 		return len(field.Options) == 0 && validConfigurationDefault(field)
+	case "color":
+		return len(field.Options) == 0 && !field.Key && (field.Default == "" || validConfigurationColor(field.Default))
 	case "secret":
 		return len(field.Options) == 0 && field.Default == "" && !field.Key
 	case "boolean":
 		return len(field.Options) == 0 && (field.Default == "" || field.Default == "true" || field.Default == "false") && !field.Key
 	case "select":
 		return validConfigurationOptions(field) && !field.Key
+	case "list":
+		return validConfigurationList(field)
 	default:
 		return false
 	}
+}
+
+// validConfigurationColor reports whether value is a canonical six-digit CSS hex color.
+func validConfigurationColor(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	for _, char := range value[1:] {
+		if char >= '0' && char <= '9' || char >= 'a' && char <= 'f' || char >= 'A' && char <= 'F' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// validConfigurationList validates one repeatable structured row field.
+func validConfigurationList(field ConfigurationField) bool {
+	if field.Key || field.Default != "" || len(field.Options) != 0 || len(field.Columns) == 0 || len(field.Columns) > 8 {
+		return false
+	}
+
+	seen := make(map[string]bool, len(field.Columns))
+	for _, column := range field.Columns {
+		if column.Key || column.Type == "list" || column.Type == "secret" || column.Type == "textarea" || column.Type == "boolean" {
+			return false
+		}
+		if !validConfigurationField(column, seen) {
+			return false
+		}
+		seen[column.ID] = true
+	}
+	return true
 }
 
 // validConfigurationDefault validates a bounded default value for scalar configuration fields.

@@ -12,7 +12,7 @@ For plugin development, SDK usage, manifests, capabilities, package formats, and
 
 ## Plugin settings and resources
 
-Plugins can declare boolean feature-toggle `settings` modules, typed singleton `settings` groups, and repeatable `admin-resource` records. Typed fields support text, textarea, URL, secret, boolean, and select controls. Kumbuka renders and validates the administrator UI, namespaces persisted values by plugin ID, and encrypts `secret` fields at rest.
+Plugins can declare boolean feature-toggle `settings` modules, typed singleton `settings` groups, and repeatable `admin-resource` records. Typed fields support text, textarea, URL, secret, boolean, select, and color controls. Repeatable admin resources can also use bounded `list` fields with typed columns for structured row editors. Kumbuka renders and validates the administrator UI, namespaces persisted values by plugin ID, and encrypts `secret` fields at rest.
 
 Typed singleton settings use `fields` on a `settings` module. The owning plugin reads them through `Settings().Get("<module>.<field>")`; the host returns manifest defaults when no administrator value has been saved yet. Repeatable records continue to use `Resources()`. A plugin needs `settings:read` to read either form.
 

@@ -51,6 +51,10 @@ func (p *Package) Manifest() Manifest {
 		for fieldIndex := range manifest.Modules[index].Fields {
 			field := &manifest.Modules[index].Fields[fieldIndex]
 			field.Options = slices.Clone(field.Options)
+			field.Columns = slices.Clone(field.Columns)
+			for columnIndex := range field.Columns {
+				field.Columns[columnIndex].Options = slices.Clone(field.Columns[columnIndex].Options)
+			}
 		}
 		manifest.Modules[index].Usage = slices.Clone(manifest.Modules[index].Usage)
 	}

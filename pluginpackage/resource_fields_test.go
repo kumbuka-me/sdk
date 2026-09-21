@@ -1,6 +1,10 @@
 package pluginpackage
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 // TestConfigurationFieldTypes verifies typed configuration schemas and secret defaults.
 func TestConfigurationFieldTypes(t *testing.T) {
@@ -23,12 +27,8 @@ func TestConfigurationFieldTypes(t *testing.T) {
 		}},
 		Permissions: []string{"settings:read", "network:http"},
 	}
-	if err := manifest.Validate(); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, manifest.Validate())
 
 	manifest.Modules[0].Fields[2].Default = "secret"
-	if err := manifest.Validate(); err == nil {
-		t.Fatal("secret default accepted")
-	}
+	require.Error(t, manifest.Validate(), "secret default accepted")
 }

@@ -17,65 +17,43 @@ func TestValidationRejectsUnsafeProjects(t *testing.T) {
 	manifest := "api_version: 1\nid: com.example.test\nname: Test\nversion: 1.0.0\nmodules:\n  - type: renderer-extension\n    id: test\n    stage: preprocess\npermissions: []\n"
 	write := func(name, value string) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(directory, name), []byte(value), 0o600); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(directory, name), []byte(value), 0o600))
 	}
 	write("plugin.yaml", manifest)
 	write("README.md", "# Test")
 	write("go.mod", "module example.com/test\n\ngo 1.27.0\n")
-	if _, err := Validate(directory); err != nil {
-		t.Fatal(err)
-	}
+	_, err := Validate(directory)
+	require.NoError(t, err)
 	write("plugin.yaml", manifest+"unknown: value\n")
-	if _, err := Validate(directory); err == nil {
-		t.Fatal("unknown manifest field accepted")
-	}
+	_, err = Validate(directory)
+	require.Error(t, err, "unknown manifest field accepted")
 	write("plugin.yaml", strings.Replace(manifest, "api_version: 1", "api_version: 999", 1))
-	if _, err := Validate(directory); err == nil {
-		t.Fatal("incompatible version accepted")
-	}
+	_, err = Validate(directory)
+	require.Error(t, err, "incompatible version accepted")
 	write("plugin.yaml", manifest)
-	if err := os.Mkdir(filepath.Join(directory, "assets"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join(directory, "README.md"), filepath.Join(directory, "assets", "escape")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Validate(directory); err == nil {
-		t.Fatal("asset symlink accepted")
-	}
+	require.NoError(t, os.Mkdir(filepath.Join(directory, "assets"), 0o700))
+	require.NoError(t, os.Symlink(filepath.Join(directory, "README.md"), filepath.Join(directory, "assets", "escape")))
+	_, err = Validate(directory)
+	require.Error(t, err, "asset symlink accepted")
 }
 
 func TestDeclarativeBuildOmitsWASMAndGoModule(t *testing.T) {
 	directory := t.TempDir()
 	write := func(name, value string) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(directory, name), []byte(value), 0o600); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(directory, name), []byte(value), 0o600))
 	}
 	write("plugin.yaml", "api_version: 1\nid: com.example.syntax\nname: Syntax\nversion: 1.0.0\nmodules:\n  - type: markdown-syntax\n    id: syntax\n    syntax: strikethrough\npermissions: []\n")
 	write("README.md", "# Syntax\n")
 
 	destination := filepath.Join(t.TempDir(), "syntax.kumbukaplugin")
-	if err := Build(context.Background(), directory, destination); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, Build(context.Background(), directory, destination))
 	data, err := os.ReadFile(destination)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	pkg, err := pluginpackage.Read(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pkg.Manifest().RequiresWASM() {
-		t.Fatal("declarative manifest unexpectedly requires WASM")
-	}
-	if len(pkg.WASM()) != 0 {
-		t.Fatal("declarative package contains plugin.wasm")
-	}
+	require.NoError(t, err)
+	require.False(t, pkg.Manifest().RequiresWASM(), "declarative manifest unexpectedly requires WASM")
+	require.Len(t, pkg.WASM(), 0, "declarative package contains plugin.wasm")
 }
 
 func TestExecutablePluginUsesContainingGoModule(t *testing.T) {

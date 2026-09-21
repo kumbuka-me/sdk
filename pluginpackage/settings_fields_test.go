@@ -1,6 +1,10 @@
 package pluginpackage
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 // TestSettingsFields validates typed singleton settings groups alongside boolean feature toggles.
 func TestSettingsFields(t *testing.T) {
@@ -25,22 +29,16 @@ func TestSettingsFields(t *testing.T) {
 		},
 	}
 
-	if err := manifest.Validate(); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, manifest.Validate())
 
 	withKey := manifest
 	withKey.Modules = append([]Module(nil), manifest.Modules...)
 	withKey.Modules[1].Fields = append([]ConfigurationField(nil), manifest.Modules[1].Fields...)
 	withKey.Modules[1].Fields[0].Key = true
-	if err := withKey.Validate(); err == nil {
-		t.Fatal("settings key field accepted")
-	}
+	require.Error(t, withKey.Validate(), "settings key field accepted")
 
 	withDependency := manifest
 	withDependency.Modules = append([]Module(nil), manifest.Modules...)
 	withDependency.Modules[1].Requires = []string{"feature"}
-	if err := withDependency.Validate(); err == nil {
-		t.Fatal("typed settings dependency accepted")
-	}
+	require.Error(t, withDependency.Validate(), "typed settings dependency accepted")
 }

@@ -87,6 +87,9 @@ func RegisterWidgetWithCommands(
 	render func(WidgetContext) (Result, error),
 	command func(WidgetCommandContext) (WidgetCommandResult, error),
 ) {
+	if command == nil {
+		panic("invalid widget command handler: " + id)
+	}
 	RegisterModule(id, widgetHandler(render, command))
 }
 

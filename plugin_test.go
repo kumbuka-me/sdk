@@ -194,6 +194,15 @@ func TestRegisterWidgetRejectsNilRenderer(t *testing.T) {
 	}, "nil widget renderer accepted")
 }
 
+func TestRegisterWidgetWithCommandsRejectsNilCommand(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+	require.Panics(t, func() {
+		RegisterWidgetWithCommands("nil-command", func(WidgetContext) (Result, error) { return Result{}, nil }, nil)
+	}, "nil widget command handler accepted")
+}
+
 func TestRegisterMacroRejectsNilCallbacks(t *testing.T) {
 	previous := handlers
 	handlers = map[string]Handler{}

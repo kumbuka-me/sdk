@@ -33,6 +33,13 @@ func TestConfigurationFieldTypes(t *testing.T) {
 	require.Error(t, manifest.Validate(), "secret default accepted")
 	manifest.Modules[0].Fields[2].Default = ""
 
+	t.Run("resource name must contain text", func(t *testing.T) {
+		invalid := manifest
+		invalid.Modules = append([]Module(nil), manifest.Modules...)
+		invalid.Modules[0].Name = "   "
+		require.Error(t, invalid.Validate())
+	})
+
 	t.Run("key must be required", func(t *testing.T) {
 		invalid := manifest
 		invalid.Modules = append([]Module(nil), manifest.Modules...)

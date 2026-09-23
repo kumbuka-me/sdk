@@ -630,11 +630,7 @@ func validSettingsModule(m Module) bool {
 
 // validSettingsMetadata reports whether settings module metadata is supported and bounded.
 func validSettingsMetadata(module Module) bool {
-	return module.Stage == "" &&
-		module.Capability == "" &&
-		len(module.Name) > 0 &&
-		len(module.Name) <= 128 &&
-		len(module.Description) <= 1024
+	return module.Stage == "" && module.Capability == "" && validModuleDisplayMetadata(module)
 }
 
 // validContentStyleModule validates a stylesheet scoped to rendered page content.
@@ -701,9 +697,7 @@ func validAdminResourceMetadata(module Module) bool {
 	return module.Stage == "" &&
 		module.Capability == "" &&
 		len(module.ID) <= 64 &&
-		len(module.Name) > 0 &&
-		len(module.Name) <= 128 &&
-		len(module.Description) <= 1024 &&
+		validModuleDisplayMetadata(module) &&
 		len(module.Fields) > 0 &&
 		len(module.Fields) <= 16
 }
@@ -915,14 +909,12 @@ func validEditorInsertModule(m Module) bool {
 func validEditorInsertMetadata(module Module) bool {
 	return module.Stage == "" &&
 		module.Capability == "" &&
-		strings.TrimSpace(module.Name) != "" &&
-		len(module.Name) <= 128 &&
-		len(module.Description) <= 1024 &&
+		validModuleDisplayMetadata(module) &&
 		len(module.Markdown) > 0 &&
 		len(module.Markdown) <= 4096 &&
 		len(module.Suffix) <= 4096 &&
 		len(module.Placeholder) <= 256 &&
-		(module.Icon == "" || identifier.MatchString(module.Icon))
+		validOptionalModuleIcon(module.Icon)
 }
 
 // validEditorInsertPlacement reports whether an editor action has a supported toolbar position.
@@ -935,10 +927,14 @@ func validEditorInsertPlacement(module Module) bool {
 
 // validEditorMenuModule validates one host-rendered plugin-owned toolbar submenu.
 func validEditorMenuModule(m Module) bool {
-	return m.Stage == "" && m.Capability == "" && strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 &&
-		len(m.Description) <= 1024 && (m.Icon == "" || identifier.MatchString(m.Icon)) &&
-		validToolbarPlacement(m.Group, m.AllowedGroups) && len(m.Children) >= 2 && len(m.Children) <= 16 &&
-		m.Order >= -1000 && m.Order <= 1000 && m.Markdown == "" && m.Mode == "" && !m.Inline
+	return m.Stage == "" &&
+		m.Capability == "" &&
+		validModuleDisplayMetadata(m) &&
+		validOptionalModuleIcon(m.Icon) &&
+		validToolbarPlacement(m.Group, m.AllowedGroups) &&
+		len(m.Children) >= 2 &&
+		len(m.Children) <= 16 &&
+		validModuleOrder(m.Order)
 }
 
 // validToolbarPlacement validates a preferred group and its bounded unique administrator choices.
@@ -969,33 +965,61 @@ func validToolbarGroup(group string) bool {
 	}
 }
 
+// validModuleDisplayMetadata reports whether administrator-facing module text is non-empty and bounded.
+func validModuleDisplayMetadata(module Module) bool {
+	return strings.TrimSpace(module.Name) != "" && len(module.Name) <= 128 && len(module.Description) <= 1024
+}
+
+// validOptionalModuleIcon reports whether an optional module icon has a valid identifier.
+func validOptionalModuleIcon(icon string) bool {
+	return icon == "" || identifier.MatchString(icon)
+}
+
+// validModuleOrder reports whether a host presentation order is within the supported range.
+func validModuleOrder(order int) bool {
+	return order >= -1000 && order <= 1000
+}
+
+// validPageActionKind reports whether kind selects a supported page action presentation.
+func validPageActionKind(kind string) bool {
+	return kind == "" || kind == "link" || kind == "dialog"
+}
+
 // validWidgetModule validates one executable widget contribution.
 func validWidgetModule(m Module) bool {
 	return m.Stage == "" && m.Name == "" && m.Description == "" && m.Capability == "" &&
-		api.ValidWidgetSurface(m.Surface) && api.ValidWidgetWidth(m.Width) && m.Order >= -1000 && m.Order <= 1000
+		api.ValidWidgetSurface(m.Surface) && api.ValidWidgetWidth(m.Width) && validModuleOrder(m.Order)
 }
 
 // validAdminActionModule validates one executable administrator action.
 func validAdminActionModule(m Module) bool {
-	return m.Stage == "" && m.Capability == "" && m.Surface == "" && m.Width == "" && m.Order == 0 &&
-		strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 && len(m.Description) <= 1024 &&
-		(m.Icon == "" || identifier.MatchString(m.Icon))
+	return m.Stage == "" &&
+		m.Capability == "" &&
+		m.Order == 0 &&
+		validModuleDisplayMetadata(m) &&
+		validOptionalModuleIcon(m.Icon)
 }
 
 // validPageActionModule validates one host-rendered current-page navigation action.
 func validPageActionModule(m Module) bool {
-	return m.Stage == "" && m.Capability == "" && m.Surface == "" && m.Width == "" &&
-		strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 && len(m.Description) <= 1024 &&
-		(m.Icon == "" || identifier.MatchString(m.Icon)) && (m.Kind == "" || m.Kind == "link" || m.Kind == "dialog") &&
-		m.Order >= -1000 && m.Order <= 1000 && validPageActionURL(m.URL)
+	return m.Stage == "" &&
+		m.Capability == "" &&
+		validModuleDisplayMetadata(m) &&
+		validOptionalModuleIcon(m.Icon) &&
+		validPageActionKind(m.Kind) &&
+		validModuleOrder(m.Order) &&
+		validPageActionURL(m.URL)
 }
 
 // validExporterModule validates one executable page export contribution.
 func validExporterModule(m Module) bool {
-	return m.Stage == "" && m.Capability == "" && m.Surface == "" && m.Width == "" &&
-		strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 && len(m.Description) <= 1024 &&
-		(m.Icon == "" || identifier.MatchString(m.Icon)) && m.Kind == "" && m.URL == "" &&
-		m.Order >= -1000 && m.Order <= 1000
+	return m.Stage == "" &&
+		m.Capability == "" &&
+		validModuleDisplayMetadata(m) &&
+		validOptionalModuleIcon(m.Icon) &&
+		m.Kind == "" &&
+		m.URL == "" &&
+		validModuleOrder(m.Order)
 }
 
 // validPageActionURL accepts bounded local URL templates with page placeholders only.

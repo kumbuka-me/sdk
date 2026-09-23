@@ -41,4 +41,9 @@ func TestSettingsFields(t *testing.T) {
 	withDependency.Modules = append([]Module(nil), manifest.Modules...)
 	withDependency.Modules[1].Requires = []string{"feature"}
 	require.Error(t, withDependency.Validate(), "typed settings dependency accepted")
+
+	withBlankName := manifest
+	withBlankName.Modules = append([]Module(nil), manifest.Modules...)
+	withBlankName.Modules[0].Name = "   "
+	require.Error(t, withBlankName.Validate(), "blank settings name accepted")
 }

@@ -164,5 +164,6 @@ func validConfigurationOption(option string, seen map[string]bool, limit int) bo
 		strings.TrimSpace(option) == option &&
 		len(option) <= limit &&
 		utf8.ValidString(option) &&
+		!strings.ContainsRune(option, '\x00') &&
 		!seen[option]
 }

@@ -52,6 +52,11 @@ func TestConfigurationFieldTypes(t *testing.T) {
 		field := ConfigurationField{ID: "provider", Name: "Provider", Type: "select", MaxBytes: 4, Options: []string{"github"}}
 		require.False(t, validConfigurationField(field, map[string]bool{}))
 	})
+
+	t.Run("select options reject NUL", func(t *testing.T) {
+		field := ConfigurationField{ID: "provider", Name: "Provider", Type: "select", Options: []string{"git\x00hub"}}
+		require.False(t, validConfigurationField(field, map[string]bool{}))
+	})
 }
 
 // TestConfigurationListFields verifies repeatable structured configuration rows and color columns.

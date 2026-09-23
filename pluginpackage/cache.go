@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+const packageCacheCapacity = 8
+
 // packageCacheState stores recently validated immutable packages by content digest.
 type packageCacheState struct {
 	// mu serializes cache lookup and replacement.
@@ -25,15 +27,7 @@ func Read(data []byte) (*Package, error) {
 	}
 
 	digest := sha256.Sum256(data)
-	packageCache.mu.Lock()
-	defer packageCache.mu.Unlock()
-
-	for index, pkg := range packageCache.entries {
-		if pkg.digest != digest {
-			continue
-		}
-		copy(packageCache.entries[index:], packageCache.entries[index+1:])
-		packageCache.entries[len(packageCache.entries)-1] = pkg
+	if pkg := packageCache.lookup(digest); pkg != nil {
 		return pkg, nil
 	}
 
@@ -41,9 +35,44 @@ func Read(data []byte) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(packageCache.entries) == 8 {
-		packageCache.entries = packageCache.entries[1:]
+	return packageCache.store(pkg), nil
+}
+
+// lookup returns and promotes a cached package with the requested digest.
+func (c *packageCacheState) lookup(digest [32]byte) *Package {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for index, pkg := range c.entries {
+		if pkg.digest == digest {
+			c.promote(index)
+			return pkg
+		}
 	}
-	packageCache.entries = append(packageCache.entries, pkg)
-	return pkg, nil
+	return nil
+}
+
+// store inserts a validated package or returns an identical package cached concurrently.
+func (c *packageCacheState) store(pkg *Package) *Package {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for index, cached := range c.entries {
+		if cached.digest == pkg.digest {
+			c.promote(index)
+			return cached
+		}
+	}
+	if len(c.entries) == packageCacheCapacity {
+		c.entries = c.entries[1:]
+	}
+	c.entries = append(c.entries, pkg)
+	return pkg
+}
+
+// promote moves one cache entry to the most-recently-used position.
+func (c *packageCacheState) promote(index int) {
+	pkg := c.entries[index]
+	copy(c.entries[index:], c.entries[index+1:])
+	c.entries[len(c.entries)-1] = pkg
 }

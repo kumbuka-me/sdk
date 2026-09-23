@@ -431,6 +431,8 @@ permissions: []
 		strings.Replace(manifest, "group: text", "group: sidebar", 1),
 		strings.Replace(manifest, "suffix: \"~~\"", "suffix: \"\"", 1),
 		strings.Replace(manifest, "icon: strikethrough-lucide", "icon: Bad Icon", 1),
+		strings.Replace(manifest, "group: text", "surface: page.details\n    group: text", 1),
+		strings.Replace(manifest, "group: text", "width: wide\n    group: text", 1),
 	} {
 		_, err := Read(testArchiveWithoutWASM(t, invalid))
 		require.Error(t, err)

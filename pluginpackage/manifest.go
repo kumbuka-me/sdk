@@ -363,7 +363,10 @@ func validModuleRenderFields(module Module) bool {
 	if module.JavaScript != "" && module.Type != "browser-module" {
 		return false
 	}
-	if hasPlacementFields(module) && !supportsPlacementFields(module.Type) {
+	if hasWidgetLayoutFields(module) && module.Type != "widget" {
+		return false
+	}
+	if module.Order != 0 && !supportsModuleOrder(module.Type) {
 		return false
 	}
 	if module.CSS != "" && !supportsCSS(module.Type) {
@@ -387,13 +390,13 @@ func validModuleRenderFields(module Module) bool {
 	return true
 }
 
-// hasPlacementFields reports whether a module declares surface, width, or ordering metadata.
-func hasPlacementFields(module Module) bool {
-	return module.Surface != "" || module.Width != "" || module.Order != 0
+// hasWidgetLayoutFields reports whether a module declares widget-only surface or width metadata.
+func hasWidgetLayoutFields(module Module) bool {
+	return module.Surface != "" || module.Width != ""
 }
 
-// supportsPlacementFields reports whether a module type may declare presentation placement metadata.
-func supportsPlacementFields(moduleType string) bool {
+// supportsModuleOrder reports whether a module type participates in ordered host presentation.
+func supportsModuleOrder(moduleType string) bool {
 	switch moduleType {
 	case "widget", "page-action", "exporter", "editor-insert", "editor-menu":
 		return true

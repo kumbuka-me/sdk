@@ -42,6 +42,22 @@ func TestParseQuotedTitle(t *testing.T) {
 
 		assert.False(t, ok)
 	})
+
+	t.Run("rejects escaped invalid UTF-8", func(t *testing.T) {
+		t.Parallel()
+
+		_, ok := ParseQuotedTitle(`"\xff"`)
+
+		assert.False(t, ok)
+	})
+
+	t.Run("rejects escaped NUL", func(t *testing.T) {
+		t.Parallel()
+
+		_, ok := ParseQuotedTitle(`"\x00"`)
+
+		assert.False(t, ok)
+	})
 }
 
 func TestIndentedBody(t *testing.T) {

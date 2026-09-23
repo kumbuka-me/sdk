@@ -14,10 +14,14 @@
   ],
   "packageRules": [
     {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["golangci/golangci-lint"],
+      "matchPackageNames": ["/^(?:github\\.com\\/)?kumbuka-me\\//"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["prettier", "golangci/golangci-lint"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     }
   ]
 }
-

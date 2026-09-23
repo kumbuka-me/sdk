@@ -56,3 +56,18 @@ func TestLocalSDKPathWithSpacesProducesValidModule(t *testing.T) {
 	require.Len(t, module.Replace, 1)
 	assert.Equal(t, filepath.ToSlash(directory), module.Replace[0].New.Path)
 }
+
+func TestSDKModulePathAcceptsGoModFormatting(t *testing.T) {
+	t.Parallel()
+
+	modulePath, err := sdkModulePath([]byte("// SDK module\r\n  module   github.com/kumbuka-me/sdk   // canonical\r\n\r\ngo 1.27.0\r\n"))
+	require.NoError(t, err)
+	assert.Equal(t, sdkModule, modulePath)
+}
+
+func TestSDKModulePathRejectsAmbiguousModuleDirectives(t *testing.T) {
+	t.Parallel()
+
+	_, err := sdkModulePath([]byte("module github.com/kumbuka-me/sdk\nmodule example.com/other\n"))
+	require.Error(t, err)
+}

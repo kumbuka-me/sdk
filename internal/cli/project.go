@@ -135,13 +135,37 @@ func validateSDKCheckout(directory string) error {
 	if err != nil {
 		return fmt.Errorf("SDK checkout: %w", err)
 	}
-	if !strings.HasPrefix(string(module), "module "+sdkModule+"\n") {
-		return fmt.Errorf("SDK checkout has unexpected module path")
+	modulePath, err := sdkModulePath(module)
+	if err != nil {
+		return fmt.Errorf("SDK checkout go.mod: %w", err)
+	}
+	if modulePath != sdkModule {
+		return fmt.Errorf("SDK checkout has unexpected module path %q", modulePath)
 	}
 	if _, err := os.Stat(filepath.Join(directory, "plugin.go")); err != nil {
 		return fmt.Errorf("SDK checkout: %w", err)
 	}
 	return nil
+}
+
+// sdkModulePath returns the single module path declared by a go.mod file.
+func sdkModulePath(module []byte) (string, error) {
+	var modulePath string
+	for _, line := range strings.Split(string(module), "\n") {
+		line, _, _ = strings.Cut(line, "//")
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != "module" {
+			continue
+		}
+		if len(fields) != 2 || modulePath != "" {
+			return "", fmt.Errorf("invalid module directive")
+		}
+		modulePath = fields[1]
+	}
+	if modulePath == "" {
+		return "", fmt.Errorf("module directive is missing")
+	}
+	return modulePath, nil
 }
 
 // developmentCheckout returns the SDK repository containing this CLI when available.

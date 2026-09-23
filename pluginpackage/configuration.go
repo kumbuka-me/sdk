@@ -8,32 +8,64 @@ import (
 
 // validConfigurationField validates one bounded structured configuration field.
 func validConfigurationField(field ConfigurationField, seen map[string]bool) bool {
-	if !validConfigurationFieldIdentity(field, seen) {
+	if !validConfigurationFieldIdentity(field, seen) || !validConfigurationFieldBounds(field) {
 		return false
 	}
-	if !validConfigurationFieldBounds(field) {
-		return false
-	}
-	if field.Type != "list" && (field.MaxItems != 0 || len(field.Columns) != 0) {
+	if !validConfigurationCollectionMetadata(field) {
 		return false
 	}
 
 	switch field.Type {
 	case "text", "textarea", "url":
-		return len(field.Options) == 0 && validConfigurationDefault(field)
+		return validTextConfigurationField(field)
 	case "color":
-		return len(field.Options) == 0 && !field.Key && (field.Default == "" || validConfigurationColor(field.Default))
+		return validColorConfigurationField(field)
 	case "secret":
-		return len(field.Options) == 0 && field.Default == "" && !field.Key
+		return validSecretConfigurationField(field)
 	case "boolean":
-		return len(field.Options) == 0 && (field.Default == "" || field.Default == "true" || field.Default == "false") && !field.Key
+		return validBooleanConfigurationField(field)
 	case "select":
-		return validConfigurationOptions(field) && !field.Key
+		return validSelectConfigurationField(field)
 	case "list":
 		return validConfigurationList(field)
 	default:
 		return false
 	}
+}
+
+// validConfigurationCollectionMetadata keeps list-only row metadata off scalar fields.
+func validConfigurationCollectionMetadata(field ConfigurationField) bool {
+	return field.Type == "list" || (field.MaxItems == 0 && len(field.Columns) == 0)
+}
+
+// validTextConfigurationField validates text, textarea, and URL field-specific values.
+func validTextConfigurationField(field ConfigurationField) bool {
+	return len(field.Options) == 0 && validConfigurationDefault(field)
+}
+
+// validColorConfigurationField validates color field-specific values.
+func validColorConfigurationField(field ConfigurationField) bool {
+	return len(field.Options) == 0 && !field.Key && (field.Default == "" || validConfigurationColor(field.Default))
+}
+
+// validSecretConfigurationField validates secret field-specific values.
+func validSecretConfigurationField(field ConfigurationField) bool {
+	return len(field.Options) == 0 && field.Default == "" && !field.Key
+}
+
+// validBooleanConfigurationField validates boolean field-specific values.
+func validBooleanConfigurationField(field ConfigurationField) bool {
+	return len(field.Options) == 0 && validBooleanDefault(field.Default) && !field.Key
+}
+
+// validBooleanDefault reports whether value is empty or one of the supported boolean literals.
+func validBooleanDefault(value string) bool {
+	return value == "" || value == "true" || value == "false"
+}
+
+// validSelectConfigurationField validates select field-specific values.
+func validSelectConfigurationField(field ConfigurationField) bool {
+	return validConfigurationOptions(field) && !field.Key
 }
 
 // validConfigurationFieldIdentity reports whether a configuration field has a unique bounded identity.

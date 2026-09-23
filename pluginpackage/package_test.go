@@ -638,3 +638,18 @@ permissions: []
 	require.NoError(t, err)
 	assert.Equal(t, []string{"light", "dark"}, cached.Manifest().Modules[0].Fields[0].Options)
 }
+
+func TestManifestToolbarSlicesAreIndependent(t *testing.T) {
+	pkg := &Package{manifest: Manifest{Modules: []Module{{
+		AllowedGroups: []string{"insert", "plugins"},
+		Children:      []string{"note", "warning"},
+	}}}}
+
+	manifest := pkg.Manifest()
+	manifest.Modules[0].AllowedGroups[0] = "changed"
+	manifest.Modules[0].Children[0] = "changed"
+
+	got := pkg.Manifest().Modules[0]
+	assert.Equal(t, []string{"insert", "plugins"}, got.AllowedGroups)
+	assert.Equal(t, []string{"note", "warning"}, got.Children)
+}

@@ -47,6 +47,8 @@ func (p *Package) Manifest() Manifest {
 	manifest.Modules = slices.Clone(manifest.Modules)
 	for index := range manifest.Modules {
 		manifest.Modules[index].Requires = slices.Clone(manifest.Modules[index].Requires)
+		manifest.Modules[index].AllowedGroups = slices.Clone(manifest.Modules[index].AllowedGroups)
+		manifest.Modules[index].Children = slices.Clone(manifest.Modules[index].Children)
 		manifest.Modules[index].Fields = slices.Clone(manifest.Modules[index].Fields)
 		for fieldIndex := range manifest.Modules[index].Fields {
 			field := &manifest.Modules[index].Fields[fieldIndex]

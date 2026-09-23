@@ -151,6 +151,10 @@ type Module struct {
 	Mode string `yaml:"mode,omitempty"`
 	// Group places an editor-insert action in insert, text, or blocks UI.
 	Group string `yaml:"group,omitempty"`
+	// AllowedGroups bounds the toolbar groups an administrator may select.
+	AllowedGroups []string `yaml:"allowed_groups,omitempty"`
+	// Children lists editor-insert module IDs owned and ordered by an editor-menu.
+	Children []string `yaml:"children,omitempty"`
 	// Icon names an optional host icon for editor and page actions.
 	Icon string `yaml:"icon,omitempty"`
 	// Kind selects link or host-dialog behavior for page-action modules.
@@ -331,6 +335,8 @@ func validModule(m Module) bool {
 		return validEditorCompletionModule(m)
 	case "editor-insert":
 		return validEditorInsertModule(m)
+	case "editor-menu":
+		return validEditorMenuModule(m)
 	case "icon-resource":
 		return validIconResourceModule(m)
 	case "widget":
@@ -354,69 +360,174 @@ func validModuleFields(module Module) bool {
 
 // validModuleRenderFields checks fields used by rendering and presentation module types.
 func validModuleRenderFields(module Module) bool {
-	if module.Type != "browser-module" && module.JavaScript != "" {
+	if module.JavaScript != "" && module.Type != "browser-module" {
 		return false
 	}
-	if module.Type != "widget" && module.Type != "page-action" && module.Type != "exporter" && (module.Surface != "" || module.Width != "" || module.Order != 0) {
+	if hasPlacementFields(module) && !supportsPlacementFields(module.Type) {
 		return false
 	}
-	if module.Type != "browser-module" && module.Type != "content-style" && module.Type != "code-highlighter" && module.CSS != "" {
+	if module.CSS != "" && !supportsCSS(module.Type) {
 		return false
 	}
-	if module.Type != "icon-resource" && module.Asset != "" {
+	if module.Asset != "" && module.Type != "icon-resource" {
 		return false
 	}
-	if module.Type != "markdown-syntax" && module.Syntax != "" {
+	if module.Syntax != "" && module.Type != "markdown-syntax" {
 		return false
 	}
-	if module.Type != "render-policy" && module.Policy != "" {
+	if module.Policy != "" && module.Type != "render-policy" {
 		return false
 	}
-	if module.Type != "settings" && module.Type != "admin-resource" && module.Type != "admin-action" && module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Description != "" {
+	if module.Description != "" && !supportsDescription(module.Type) {
 		return false
 	}
-	if module.Type != "settings" && len(module.Requires) != 0 {
+	if len(module.Requires) != 0 && module.Type != "settings" {
 		return false
 	}
 	return true
+}
+
+// hasPlacementFields reports whether a module declares surface, width, or ordering metadata.
+func hasPlacementFields(module Module) bool {
+	return module.Surface != "" || module.Width != "" || module.Order != 0
+}
+
+// supportsPlacementFields reports whether a module type may declare presentation placement metadata.
+func supportsPlacementFields(moduleType string) bool {
+	switch moduleType {
+	case "widget", "page-action", "exporter", "editor-insert", "editor-menu":
+		return true
+	default:
+		return false
+	}
+}
+
+// supportsCSS reports whether a module type may declare a stylesheet asset.
+func supportsCSS(moduleType string) bool {
+	switch moduleType {
+	case "browser-module", "content-style", "code-highlighter":
+		return true
+	default:
+		return false
+	}
+}
+
+// supportsDescription reports whether a module type may declare administrator-facing descriptive text.
+func supportsDescription(moduleType string) bool {
+	switch moduleType {
+	case "settings", "admin-resource", "admin-action", "editor-insert", "editor-menu", "page-action", "exporter":
+		return true
+	default:
+		return false
+	}
 }
 
 // validModuleConfigurationFields checks structured configuration, substitution, and priority fields.
 func validModuleConfigurationFields(module Module) bool {
-	if module.Type != "renderer-extension" && module.Type != "content-substitution" && module.Priority != 0 {
+	if module.Priority != 0 && !supportsPriority(module.Type) {
 		return false
 	}
-	if module.Type != "admin-resource" && module.Type != "settings" && len(module.Fields) != 0 {
+	if len(module.Fields) != 0 && !supportsConfigurationFields(module.Type) {
 		return false
 	}
-	if module.Type != "content-substitution" && module.Type != "editor-completion" && module.Resource != "" {
+	if module.Resource != "" && !supportsResourceReference(module.Type) {
 		return false
 	}
-	if module.Type != "content-substitution" && (module.Prefix != "" || module.ValueField != "" || module.Inspect || module.Export) {
+	if hasSubstitutionFields(module) && module.Type != "content-substitution" {
 		return false
 	}
-	if module.Type != "content-substitution" && module.Type != "editor-completion" && (module.LabelField != "" || module.DetailField != "") {
+	if hasResourcePresentationFields(module) && !supportsResourcePresentationFields(module.Type) {
 		return false
 	}
 	return true
 }
 
+// supportsPriority reports whether a module type may declare pipeline priority.
+func supportsPriority(moduleType string) bool {
+	return moduleType == "renderer-extension" || moduleType == "content-substitution"
+}
+
+// supportsConfigurationFields reports whether a module type may declare typed configuration fields.
+func supportsConfigurationFields(moduleType string) bool {
+	return moduleType == "admin-resource" || moduleType == "settings"
+}
+
+// supportsResourceReference reports whether a module type may refer to an admin resource.
+func supportsResourceReference(moduleType string) bool {
+	return moduleType == "content-substitution" || moduleType == "editor-completion"
+}
+
+// hasSubstitutionFields reports whether a module declares content-substitution-only fields.
+func hasSubstitutionFields(module Module) bool {
+	return module.Prefix != "" || module.ValueField != "" || module.Inspect || module.Export
+}
+
+// hasResourcePresentationFields reports whether a module declares resource label or detail fields.
+func hasResourcePresentationFields(module Module) bool {
+	return module.LabelField != "" || module.DetailField != ""
+}
+
+// supportsResourcePresentationFields reports whether a module type may declare resource presentation fields.
+func supportsResourcePresentationFields(moduleType string) bool {
+	return moduleType == "content-substitution" || moduleType == "editor-completion"
+}
+
 // validModuleEditorFields checks fields contributed by editor completion and insert modules.
 func validModuleEditorFields(module Module) bool {
-	if module.Type != "editor-completion" && (module.Trigger != "" || module.Replacement != "") {
+	if hasCompletionFields(module) && module.Type != "editor-completion" {
 		return false
 	}
-	if module.Type != "editor-insert" && (module.Markdown != "" || module.Suffix != "" || module.Placeholder != "" ||
-		module.Mode != "" || module.Group != "" || module.Inline) {
+	if hasEditorInsertFields(module) && module.Type != "editor-insert" {
 		return false
 	}
-	if module.Type != "editor-insert" && module.Type != "page-action" && module.Type != "exporter" && module.Type != "admin-action" && module.Icon != "" {
+	if module.Group != "" && !supportsToolbarPlacement(module.Type) {
 		return false
 	}
-	if module.Type != "page-action" && (module.Kind != "" || module.URL != "") {
+	if hasToolbarCollectionFields(module) && !supportsToolbarPlacement(module.Type) {
+		return false
+	}
+	if module.Icon != "" && !supportsModuleIcon(module.Type) {
+		return false
+	}
+	if hasPageActionFields(module) && module.Type != "page-action" {
 		return false
 	}
 	return true
+}
+
+// hasCompletionFields reports whether a module declares editor-completion-only fields.
+func hasCompletionFields(module Module) bool {
+	return module.Trigger != "" || module.Replacement != ""
+}
+
+// hasEditorInsertFields reports whether a module declares editor-insert-only content fields.
+func hasEditorInsertFields(module Module) bool {
+	return module.Markdown != "" || module.Suffix != "" || module.Placeholder != "" || module.Mode != "" || module.Inline
+}
+
+// supportsToolbarPlacement reports whether a module type may participate in editor toolbar placement.
+func supportsToolbarPlacement(moduleType string) bool {
+	return moduleType == "editor-insert" || moduleType == "editor-menu"
+}
+
+// hasToolbarCollectionFields reports whether a module declares toolbar group choices or child actions.
+func hasToolbarCollectionFields(module Module) bool {
+	return len(module.AllowedGroups) != 0 || len(module.Children) != 0
+}
+
+// supportsModuleIcon reports whether a module type may declare a host-rendered icon.
+func supportsModuleIcon(moduleType string) bool {
+	switch moduleType {
+	case "editor-insert", "editor-menu", "page-action", "exporter", "admin-action":
+		return true
+	default:
+		return false
+	}
+}
+
+// hasPageActionFields reports whether a module declares page-action-only navigation fields.
+func hasPageActionFields(module Module) bool {
+	return module.Kind != "" || module.URL != ""
 }
 
 // validUsageRules validates bounded, declarative source selectors.
@@ -450,7 +561,7 @@ func validUsageRule(rule UsageRule) bool {
 	selectors := 0
 	if rule.Contains != "" {
 		selectors++
-		if len(rule.Contains) > 128 || !utf8.ValidString(rule.Contains) || strings.ContainsRune(rule.Contains, '\x00') {
+		if !validUsageContains(rule.Contains) {
 			return false
 		}
 	}
@@ -475,6 +586,11 @@ func validUsageRule(rule UsageRule) bool {
 	return selectors == 1
 }
 
+// validUsageContains reports whether a literal usage selector is bounded, valid UTF-8 text.
+func validUsageContains(value string) bool {
+	return len(value) <= 128 && utf8.ValidString(value) && !strings.ContainsRune(value, '\x00')
+}
+
 // validMarkdownSyntaxModule validates fields specific to a Markdown syntax declaration.
 func validMarkdownSyntaxModule(m Module) bool {
 	return api.ValidSyntax(m.Syntax) && m.Stage == "" && m.Name == "" && m.Capability == ""
@@ -488,7 +604,7 @@ func validCodeHighlighterModule(m Module) bool {
 
 // validSettingsModule validates either one boolean feature toggle or one typed singleton settings group.
 func validSettingsModule(m Module) bool {
-	if m.Stage != "" || m.Capability != "" || len(m.Name) == 0 || len(m.Name) > 128 || len(m.Description) > 1024 {
+	if !validSettingsMetadata(m) {
 		return false
 	}
 	if len(m.Fields) == 0 {
@@ -507,6 +623,15 @@ func validSettingsModule(m Module) bool {
 	}
 
 	return true
+}
+
+// validSettingsMetadata reports whether settings module metadata is supported and bounded.
+func validSettingsMetadata(module Module) bool {
+	return module.Stage == "" &&
+		module.Capability == "" &&
+		len(module.Name) > 0 &&
+		len(module.Name) <= 128 &&
+		len(module.Description) <= 1024
 }
 
 // validContentStyleModule validates a stylesheet scoped to rendered page content.
@@ -550,9 +675,7 @@ func validMacroModule(m Module) bool {
 
 // validAdminResourceModule validates one host-rendered plugin record collection.
 func validAdminResourceModule(module Module) bool {
-	if module.Stage != "" || module.Capability != "" || len(module.ID) > 64 ||
-		len(module.Name) == 0 || len(module.Name) > 128 || len(module.Description) > 1024 ||
-		len(module.Fields) == 0 || len(module.Fields) > 16 {
+	if !validAdminResourceMetadata(module) {
 		return false
 	}
 
@@ -570,12 +693,24 @@ func validAdminResourceModule(module Module) bool {
 	return keys == 1
 }
 
+// validAdminResourceMetadata reports whether resource metadata and field counts are supported.
+func validAdminResourceMetadata(module Module) bool {
+	return module.Stage == "" &&
+		module.Capability == "" &&
+		len(module.ID) <= 64 &&
+		len(module.Name) > 0 &&
+		len(module.Name) <= 128 &&
+		len(module.Description) <= 1024 &&
+		len(module.Fields) > 0 &&
+		len(module.Fields) <= 16
+}
+
 // validConfigurationField validates one bounded structured configuration field.
 func validConfigurationField(field ConfigurationField, seen map[string]bool) bool {
-	if !identifier.MatchString(field.ID) || seen[field.ID] || strings.TrimSpace(field.Name) == "" || len(field.Name) > 128 {
+	if !validConfigurationFieldIdentity(field, seen) {
 		return false
 	}
-	if field.MaxBytes < 0 || field.MaxBytes > 64<<10 || field.MaxItems < 0 || field.MaxItems > 64 || (field.Key && field.Type != "text") {
+	if !validConfigurationFieldBounds(field) {
 		return false
 	}
 	if field.Type != "list" && (field.MaxItems != 0 || len(field.Columns) != 0) {
@@ -600,29 +735,52 @@ func validConfigurationField(field ConfigurationField, seen map[string]bool) boo
 	}
 }
 
+// validConfigurationFieldIdentity reports whether a configuration field has a unique bounded identity.
+func validConfigurationFieldIdentity(field ConfigurationField, seen map[string]bool) bool {
+	return identifier.MatchString(field.ID) &&
+		!seen[field.ID] &&
+		strings.TrimSpace(field.Name) != "" &&
+		len(field.Name) <= 128
+}
+
+// validConfigurationFieldBounds reports whether field size constraints and key usage are supported.
+func validConfigurationFieldBounds(field ConfigurationField) bool {
+	return field.MaxBytes >= 0 &&
+		field.MaxBytes <= 64<<10 &&
+		field.MaxItems >= 0 &&
+		field.MaxItems <= 64 &&
+		(!field.Key || field.Type == "text")
+}
+
 // validConfigurationColor reports whether value is a canonical six-digit CSS hex color.
 func validConfigurationColor(value string) bool {
 	if len(value) != 7 || value[0] != '#' {
 		return false
 	}
 	for _, char := range value[1:] {
-		if char >= '0' && char <= '9' || char >= 'a' && char <= 'f' || char >= 'A' && char <= 'F' {
-			continue
+		if !isHexDigit(char) {
+			return false
 		}
-		return false
 	}
 	return true
 }
 
+// isHexDigit reports whether character is an ASCII hexadecimal digit.
+func isHexDigit(character rune) bool {
+	return character >= '0' && character <= '9' ||
+		character >= 'a' && character <= 'f' ||
+		character >= 'A' && character <= 'F'
+}
+
 // validConfigurationList validates one repeatable structured row field.
 func validConfigurationList(field ConfigurationField) bool {
-	if field.Key || field.Default != "" || len(field.Options) != 0 || len(field.Columns) == 0 || len(field.Columns) > 8 {
+	if !validConfigurationListShape(field) {
 		return false
 	}
 
 	seen := make(map[string]bool, len(field.Columns))
 	for _, column := range field.Columns {
-		if column.Key || column.Type == "list" || column.Type == "secret" || column.Type == "textarea" || column.Type == "boolean" {
+		if !validConfigurationListColumn(column) {
 			return false
 		}
 		if !validConfigurationField(column, seen) {
@@ -631,6 +789,25 @@ func validConfigurationList(field ConfigurationField) bool {
 		seen[column.ID] = true
 	}
 	return true
+}
+
+// validConfigurationListShape reports whether a list field has supported list-only metadata.
+func validConfigurationListShape(field ConfigurationField) bool {
+	return !field.Key &&
+		field.Default == "" &&
+		len(field.Options) == 0 &&
+		len(field.Columns) > 0 &&
+		len(field.Columns) <= 8
+}
+
+// validConfigurationListColumn reports whether a field type is supported inside structured list rows.
+func validConfigurationListColumn(column ConfigurationField) bool {
+	switch column.Type {
+	case "list", "secret", "textarea", "boolean":
+		return false
+	default:
+		return !column.Key
+	}
 }
 
 // validConfigurationDefault validates a bounded default value for scalar configuration fields.
@@ -663,12 +840,21 @@ func validConfigurationOptions(field ConfigurationField) bool {
 	}
 	seen := make(map[string]bool, len(field.Options))
 	for _, option := range field.Options {
-		if strings.TrimSpace(option) != option || option == "" || len(option) > 128 || !utf8.ValidString(option) || seen[option] {
+		if !validConfigurationOption(option, seen) {
 			return false
 		}
 		seen[option] = true
 	}
 	return field.Default == "" || seen[field.Default]
+}
+
+// validConfigurationOption reports whether one select option is unique, bounded, and canonical.
+func validConfigurationOption(option string, seen map[string]bool) bool {
+	return option != "" &&
+		strings.TrimSpace(option) == option &&
+		len(option) <= 128 &&
+		utf8.ValidString(option) &&
+		!seen[option]
 }
 
 // validContentSubstitutionModule validates a resource-backed inline Markdown substitution.
@@ -689,9 +875,7 @@ func validEditorCompletionModule(m Module) bool {
 
 // validEditorInsertModule validates one declarative editor action.
 func validEditorInsertModule(m Module) bool {
-	if m.Stage != "" || m.Capability != "" || strings.TrimSpace(m.Name) == "" || len(m.Name) > 128 ||
-		len(m.Description) > 1024 || len(m.Markdown) == 0 || len(m.Markdown) > 4096 || len(m.Suffix) > 4096 ||
-		len(m.Placeholder) > 256 || (m.Icon != "" && !identifier.MatchString(m.Icon)) {
+	if !validEditorInsertMetadata(m) {
 		return false
 	}
 
@@ -699,11 +883,7 @@ func validEditorInsertModule(m Module) bool {
 	if mode == "" {
 		mode = "insert"
 	}
-	group := m.Group
-	if group == "" {
-		group = "insert"
-	}
-	if group != "insert" && group != "text" && group != "blocks" {
+	if !validEditorInsertPlacement(m) {
 		return false
 	}
 
@@ -714,6 +894,64 @@ func validEditorInsertModule(m Module) bool {
 		return m.Suffix != "" && !m.Inline
 	case "prefix-lines":
 		return m.Suffix == "" && !m.Inline
+	default:
+		return false
+	}
+}
+
+// validEditorInsertMetadata reports whether editor action metadata and source bounds are supported.
+func validEditorInsertMetadata(module Module) bool {
+	return module.Stage == "" &&
+		module.Capability == "" &&
+		strings.TrimSpace(module.Name) != "" &&
+		len(module.Name) <= 128 &&
+		len(module.Description) <= 1024 &&
+		len(module.Markdown) > 0 &&
+		len(module.Markdown) <= 4096 &&
+		len(module.Suffix) <= 4096 &&
+		len(module.Placeholder) <= 256 &&
+		(module.Icon == "" || identifier.MatchString(module.Icon))
+}
+
+// validEditorInsertPlacement reports whether an editor action has a supported toolbar position.
+func validEditorInsertPlacement(module Module) bool {
+	return validToolbarPlacement(module.Group, module.AllowedGroups) &&
+		len(module.Children) == 0 &&
+		module.Order >= -1000 &&
+		module.Order <= 1000
+}
+
+// validEditorMenuModule validates one host-rendered plugin-owned toolbar submenu.
+func validEditorMenuModule(m Module) bool {
+	return m.Stage == "" && m.Capability == "" && strings.TrimSpace(m.Name) != "" && len(m.Name) <= 128 &&
+		len(m.Description) <= 1024 && (m.Icon == "" || identifier.MatchString(m.Icon)) &&
+		validToolbarPlacement(m.Group, m.AllowedGroups) && len(m.Children) >= 2 && len(m.Children) <= 16 &&
+		m.Order >= -1000 && m.Order <= 1000 && m.Markdown == "" && m.Mode == "" && !m.Inline
+}
+
+// validToolbarPlacement validates a preferred group and its bounded unique administrator choices.
+func validToolbarPlacement(preferred string, allowed []string) bool {
+	if preferred == "" {
+		preferred = "insert"
+	}
+	if !validToolbarGroup(preferred) || len(allowed) > 5 {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, group := range allowed {
+		if !validToolbarGroup(group) || seen[group] {
+			return false
+		}
+		seen[group] = true
+	}
+	return len(allowed) == 0 || seen[preferred]
+}
+
+// validToolbarGroup reports whether a group is one of the stable host-owned toolbar slots.
+func validToolbarGroup(group string) bool {
+	switch group {
+	case "text", "blocks", "insert", "tools", "plugins":
+		return true
 	default:
 		return false
 	}
@@ -750,8 +988,7 @@ func validExporterModule(m Module) bool {
 
 // validPageActionURL accepts bounded local URL templates with page placeholders only.
 func validPageActionURL(value string) bool {
-	if len(value) == 0 || len(value) > 2048 || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") ||
-		strings.ContainsAny(value, "\\\r\n\t") {
+	if !validPageActionURLShape(value) {
 		return false
 	}
 
@@ -764,6 +1001,15 @@ func validPageActionURL(value string) bool {
 	return err == nil && parsed.Host == "" && !parsed.IsAbs()
 }
 
+// validPageActionURLShape reports whether value has a bounded local-path URL shape.
+func validPageActionURLShape(value string) bool {
+	return len(value) > 0 &&
+		len(value) <= 2048 &&
+		strings.HasPrefix(value, "/") &&
+		!strings.HasPrefix(value, "//") &&
+		!strings.ContainsAny(value, "\\\r\n\t")
+}
+
 // validIconResourceModule validates one declarative icon-pack contribution.
 func validIconResourceModule(m Module) bool {
 	name := strings.TrimSpace(m.Name)
@@ -774,10 +1020,22 @@ func validIconResourceModule(m Module) bool {
 // validateModuleReferences checks relationships between declarative modules in one package.
 func validateModuleReferences(modules []Module) error {
 	byID := make(map[string]Module, len(modules))
+	menuChild := make(map[string]string)
 	for _, module := range modules {
 		byID[module.ID] = module
 	}
 	for _, module := range modules {
+		if module.Type == "editor-menu" {
+			seen := map[string]bool{}
+			for _, childID := range module.Children {
+				child, ok := byID[childID]
+				if !validEditorMenuChild(child, ok, childID, seen, menuChild) {
+					return fmt.Errorf("editor menu %s has invalid child %s", module.ID, childID)
+				}
+				seen[childID] = true
+				menuChild[childID] = module.ID
+			}
+		}
 		if module.Resource == "" {
 			continue
 		}
@@ -786,6 +1044,11 @@ func validateModuleReferences(modules []Module) error {
 		}
 	}
 	return nil
+}
+
+// validEditorMenuChild reports whether a menu child is a unique unowned editor-insert module.
+func validEditorMenuChild(child Module, exists bool, childID string, seen map[string]bool, menuChild map[string]string) bool {
+	return exists && child.Type == "editor-insert" && !seen[childID] && menuChild[childID] == ""
 }
 
 // validateModuleReference checks one resource-backed module against its declared resource.

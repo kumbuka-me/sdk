@@ -437,6 +437,52 @@ permissions: []
 	}
 }
 
+func TestEditorToolbarMenuValidation(t *testing.T) {
+	manifest := `api_version: 1
+id: com.example.callouts
+name: Callouts
+version: 1.0.0
+modules:
+  - type: editor-insert
+    id: note
+    name: Note
+    markdown: "!!! note\nNote."
+  - type: editor-insert
+    id: warning
+    name: Warning
+    markdown: "!!! warning\nWarning."
+  - type: editor-menu
+    id: callouts
+    name: Callouts
+    icon: message-square-warning-lucide
+    group: insert
+    allowed_groups: [insert, plugins]
+    order: 30
+    children: [note, warning]
+permissions: []
+`
+	pkg, err := Read(testArchiveWithoutWASM(t, manifest))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"insert", "plugins"}, pkg.Manifest().Modules[2].AllowedGroups)
+
+	t.Run("rejects unknown group", func(t *testing.T) {
+		_, err := Read(testArchiveWithoutWASM(t, strings.Replace(manifest, "[insert, plugins]", "[insert, sidebar]", 1)))
+		require.Error(t, err)
+	})
+	t.Run("rejects preferred group outside allowed groups", func(t *testing.T) {
+		_, err := Read(testArchiveWithoutWASM(t, strings.Replace(manifest, "group: insert", "group: text", 1)))
+		require.Error(t, err)
+	})
+	t.Run("rejects unknown child", func(t *testing.T) {
+		_, err := Read(testArchiveWithoutWASM(t, strings.Replace(manifest, "[note, warning]", "[note, missing]", 1)))
+		require.Error(t, err)
+	})
+	t.Run("rejects duplicate child", func(t *testing.T) {
+		_, err := Read(testArchiveWithoutWASM(t, strings.Replace(manifest, "[note, warning]", "[note, note]", 1)))
+		require.Error(t, err)
+	})
+}
+
 func TestWidgetModule(t *testing.T) {
 	manifest := `api_version: 1
 id: io.example.widget

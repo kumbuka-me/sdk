@@ -6,20 +6,49 @@ const renderPolicyFeaturePrefix = "render-policy."
 // identifier. Policies are semantic markers shared by plugins; core does not
 // attach feature-specific behavior to individual policy names.
 func ValidRenderPolicy(name string) bool {
-	if len(name) == 0 || len(name) > 128 {
+	if !validRenderPolicyLength(name) {
 		return false
 	}
+
 	for index := 0; index < len(name); index++ {
-		char := name[index]
-		if char >= 'a' && char <= 'z' || char >= '0' && char <= '9' {
-			continue
+		if !validRenderPolicyCharacter(name[index], index) {
+			return false
 		}
-		if index > 0 && (char == '.' || char == '_' || char == '-') {
-			continue
-		}
-		return false
 	}
 	return true
+}
+
+// validRenderPolicyLength reports whether name satisfies the policy identifier length bounds.
+func validRenderPolicyLength(name string) bool {
+	return len(name) > 0 && len(name) <= 128
+}
+
+// validRenderPolicyCharacter reports whether one byte is allowed at the given identifier position.
+func validRenderPolicyCharacter(character byte, index int) bool {
+	if isLowercaseAlphaNumeric(character) {
+		return true
+	}
+	return index > 0 && isRenderPolicySeparator(character)
+}
+
+// isLowercaseAlphaNumeric reports whether character is a lowercase ASCII letter or digit.
+func isLowercaseAlphaNumeric(character byte) bool {
+	return isLowercaseLetter(character) || isDigit(character)
+}
+
+// isLowercaseLetter reports whether character is a lowercase ASCII letter.
+func isLowercaseLetter(character byte) bool {
+	return character >= 'a' && character <= 'z'
+}
+
+// isDigit reports whether character is an ASCII decimal digit.
+func isDigit(character byte) bool {
+	return character >= '0' && character <= '9'
+}
+
+// isRenderPolicySeparator reports whether character is an allowed non-leading policy separator.
+func isRenderPolicySeparator(character byte) bool {
+	return character == '.' || character == '_' || character == '-'
 }
 
 // RenderPolicyFeature returns the request feature key for one policy marker.

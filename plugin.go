@@ -154,8 +154,7 @@ func renderWidgetCommand(
 	request Request,
 	command func(WidgetCommandContext) (WidgetCommandResult, error),
 ) Result {
-	if command == nil || request.WidgetCommand == nil ||
-		!ValidWidgetSurface(request.WidgetCommand.Surface) || request.WidgetCommand.Action == "" {
+	if !validWidgetCommandRequest(request, command) {
 		return Result{Error: "unsupported widget command"}
 	}
 	context := *request.WidgetCommand
@@ -165,6 +164,17 @@ func renderWidgetCommand(
 		return Failure(err)
 	}
 	return Result{WidgetCommand: &result}
+}
+
+// validWidgetCommandRequest reports whether a widget command has a handler and valid host context.
+func validWidgetCommandRequest(
+	request Request,
+	command func(WidgetCommandContext) (WidgetCommandResult, error),
+) bool {
+	if command == nil || request.WidgetCommand == nil {
+		return false
+	}
+	return ValidWidgetSurface(request.WidgetCommand.Surface) && request.WidgetCommand.Action != ""
 }
 
 // RegisterMacro hides the parse/render transport and invocation serialization.

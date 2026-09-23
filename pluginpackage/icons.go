@@ -54,7 +54,7 @@ func ParseIconResource(data []byte) (IconResource, error) {
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return IconResource{}, errors.New("icon resource must contain exactly one JSON document")
 	}
-	if resource.Format != 1 || len(resource.Icons) == 0 || len(resource.Icons) > MaxIconResourceIcons {
+	if !validIconResourceShape(resource) {
 		return IconResource{}, errors.New("invalid icon resource")
 	}
 
@@ -66,6 +66,11 @@ func ParseIconResource(data []byte) (IconResource, error) {
 		seen[resource.Icons[index].Name] = true
 	}
 	return resource, nil
+}
+
+// validIconResourceShape reports whether an icon resource has the supported format and item count.
+func validIconResourceShape(resource IconResource) bool {
+	return resource.Format == 1 && len(resource.Icons) > 0 && len(resource.Icons) <= MaxIconResourceIcons
 }
 
 // normalizeAndValidateIcon normalizes one icon and checks its metadata and paths.
@@ -88,17 +93,24 @@ func validIconPaths(paths []string) bool {
 		return false
 	}
 	for _, path := range paths {
-		if strings.TrimSpace(path) == "" || len(path) > MaxIconResourcePathBytes ||
-			!utf8.ValidString(path) || strings.ContainsRune(path, '\x00') {
+		if !validIconPath(path) {
 			return false
 		}
 	}
 	return true
 }
 
+// validIconPath reports whether one SVG path string is non-empty, bounded, and valid text.
+func validIconPath(path string) bool {
+	return strings.TrimSpace(path) != "" &&
+		len(path) <= MaxIconResourcePathBytes &&
+		utf8.ValidString(path) &&
+		!strings.ContainsRune(path, '\x00')
+}
+
 // validIconText reports whether human-readable icon metadata is safe and bounded.
 func validIconText(value string, limit int) bool {
-	if value == "" || len(value) > limit || !utf8.ValidString(value) {
+	if !validIconTextShape(value, limit) {
 		return false
 	}
 	for _, character := range value {
@@ -107,6 +119,11 @@ func validIconText(value string, limit int) bool {
 		}
 	}
 	return true
+}
+
+// validIconTextShape reports whether icon text is non-empty, bounded, and valid UTF-8.
+func validIconTextShape(value string, limit int) bool {
+	return value != "" && len(value) <= limit && utf8.ValidString(value)
 }
 
 // validIconViewBox accepts four finite SVG view-box numbers with positive dimensions.
@@ -118,11 +135,20 @@ func validIconViewBox(value string) bool {
 
 	var values [4]float64
 	for index, field := range fields {
-		value, err := strconv.ParseFloat(field, 64)
-		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+		value, ok := finiteFloat(field)
+		if !ok {
 			return false
 		}
 		values[index] = value
 	}
 	return values[2] > 0 && values[3] > 0
+}
+
+// finiteFloat parses one finite floating-point number.
+func finiteFloat(value string) (float64, bool) {
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0, false
+	}
+	return parsed, true
 }

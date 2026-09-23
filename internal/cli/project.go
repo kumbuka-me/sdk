@@ -50,7 +50,8 @@ func initialize(ctx context.Context, config initConfig, stdout, stderr io.Writer
 	if err := os.Mkdir(config.Name, 0o755); err != nil {
 		return fmt.Errorf("create project: %w", err)
 	}
-	if err := writeProjectFiles(config.Name, generatedProjectFiles(config.Name, version, replacement)); err != nil {
+	files := generatedProjectFiles(config.Name, version, replacement)
+	if err := writeProjectFiles(config.Name, files); err != nil {
 		return err
 	}
 	if err := runGo(ctx, config.Name, stdout, stderr, "mod", "tidy"); err != nil {

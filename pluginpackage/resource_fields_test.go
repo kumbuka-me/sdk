@@ -31,6 +31,20 @@ func TestConfigurationFieldTypes(t *testing.T) {
 
 	manifest.Modules[0].Fields[2].Default = "secret"
 	require.Error(t, manifest.Validate(), "secret default accepted")
+	manifest.Modules[0].Fields[2].Default = ""
+
+	t.Run("key must be required", func(t *testing.T) {
+		invalid := manifest
+		invalid.Modules = append([]Module(nil), manifest.Modules...)
+		invalid.Modules[0].Fields = append([]ConfigurationField(nil), manifest.Modules[0].Fields...)
+		invalid.Modules[0].Fields[0].Required = false
+		require.Error(t, invalid.Validate())
+	})
+
+	t.Run("select options honor max bytes", func(t *testing.T) {
+		field := ConfigurationField{ID: "provider", Name: "Provider", Type: "select", MaxBytes: 4, Options: []string{"github"}}
+		require.False(t, validConfigurationField(field, map[string]bool{}))
+	})
 }
 
 // TestConfigurationListFields verifies repeatable structured configuration rows and color columns.

@@ -752,7 +752,12 @@ func validConfigurationFieldBounds(field ConfigurationField) bool {
 		field.MaxBytes <= 64<<10 &&
 		field.MaxItems >= 0 &&
 		field.MaxItems <= 64 &&
-		(!field.Key || field.Type == "text")
+		validConfigurationKey(field)
+}
+
+// validConfigurationKey reports whether a key field is required text or the field is not a key.
+func validConfigurationKey(field ConfigurationField) bool {
+	return !field.Key || (field.Type == "text" && field.Required)
 }
 
 // validConfigurationColor reports whether value is a canonical six-digit CSS hex color.
@@ -818,15 +823,7 @@ func validConfigurationDefault(field ConfigurationField) bool {
 	if !utf8.ValidString(field.Default) || strings.ContainsRune(field.Default, '\x00') {
 		return false
 	}
-	limit := field.MaxBytes
-	if limit == 0 {
-		if field.Type == "textarea" {
-			limit = 48 << 10
-		} else {
-			limit = 4096
-		}
-	}
-	if len(field.Default) > limit {
+	if len(field.Default) > configurationByteLimit(field) {
 		return false
 	}
 	if field.Type != "url" || field.Default == "" {
@@ -836,14 +833,26 @@ func validConfigurationDefault(field ConfigurationField) bool {
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }
 
+// configurationByteLimit returns the explicit field limit or the host default for its type.
+func configurationByteLimit(field ConfigurationField) int {
+	if field.MaxBytes != 0 {
+		return field.MaxBytes
+	}
+	if field.Type == "textarea" {
+		return 48 << 10
+	}
+	return 4096
+}
+
 // validConfigurationOptions validates the bounded option set and optional default of a select field.
 func validConfigurationOptions(field ConfigurationField) bool {
 	if len(field.Options) == 0 || len(field.Options) > 32 {
 		return false
 	}
 	seen := make(map[string]bool, len(field.Options))
+	limit := min(128, configurationByteLimit(field))
 	for _, option := range field.Options {
-		if !validConfigurationOption(option, seen) {
+		if !validConfigurationOption(option, seen, limit) {
 			return false
 		}
 		seen[option] = true
@@ -852,10 +861,10 @@ func validConfigurationOptions(field ConfigurationField) bool {
 }
 
 // validConfigurationOption reports whether one select option is unique, bounded, and canonical.
-func validConfigurationOption(option string, seen map[string]bool) bool {
+func validConfigurationOption(option string, seen map[string]bool, limit int) bool {
 	return option != "" &&
 		strings.TrimSpace(option) == option &&
-		len(option) <= 128 &&
+		len(option) <= limit &&
 		utf8.ValidString(option) &&
 		!seen[option]
 }

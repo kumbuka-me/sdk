@@ -5,7 +5,10 @@ import "strings"
 
 // Fence returns the complete opening backtick or tilde run, including its length.
 func Fence(line string) string {
-	line = strings.TrimSpace(line)
+	line, ok := fenceLineContent(line)
+	if !ok {
+		return ""
+	}
 	marker := openingMarker(line)
 	if marker == "" || !validFenceInfo(marker, line[len(marker):]) {
 		return ""
@@ -29,11 +32,26 @@ func validFenceInfo(marker, info string) bool {
 	return marker[0] != '`' || !strings.ContainsRune(info, '`')
 }
 
-// Closes accepts only a matching run at least as long as the opener, followed
-// by whitespace. A shorter run or an info string remains code content.
+// Closes reports whether line is a CommonMark-compatible closing fence for marker.
 func Closes(line, marker string) bool {
-	line = strings.TrimSpace(line)
+	line, ok := fenceLineContent(line)
+	if !ok {
+		return false
+	}
+	line = strings.TrimRight(line, " \t")
 	return strings.HasPrefix(line, marker) && strings.Trim(line, string(marker[0])) == ""
+}
+
+// fenceLineContent removes at most three leading spaces and rejects deeper or tab indentation.
+func fenceLineContent(line string) (string, bool) {
+	spaces := 0
+	for spaces < len(line) && line[spaces] == ' ' {
+		spaces++
+	}
+	if spaces > 3 || (spaces < len(line) && line[spaces] == '\t') {
+		return "", false
+	}
+	return line[spaces:], true
 }
 
 // AppendFence copies a complete fenced block without interpreting its body.

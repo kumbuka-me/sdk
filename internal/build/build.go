@@ -17,7 +17,6 @@ import (
 )
 
 // Build validates and compiles a project, then writes a deterministic package.
-// Browser sources must already be compiled to the manifest-declared assets.
 func Build(ctx context.Context, directory, destination string) error {
 	project, err := loadProject(directory)
 	if err != nil {

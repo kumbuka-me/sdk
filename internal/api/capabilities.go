@@ -240,8 +240,7 @@ type LogMessage struct {
 	Message string
 }
 
-// PermissionFor is the closed set of host operations supported by API v1.
-// An empty permission is an explicitly public, non-sensitive operation.
+// PermissionFor returns the required permission for one supported API v1 host operation.
 func PermissionFor(method string) (string, bool) {
 	switch method {
 	case "pages.get", "pages.search", "pages.navigation", "pages.links", "pages.revisions",

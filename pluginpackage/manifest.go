@@ -42,7 +42,6 @@ type Manifest struct {
 }
 
 // RequiresWASM reports whether any module in this manifest executes guest code.
-// Declarative modules are handled entirely by the host and do not need a WASM guest.
 func (m Manifest) RequiresWASM() bool {
 	for _, module := range m.Modules {
 		switch module.Type {

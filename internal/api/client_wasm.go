@@ -16,8 +16,7 @@ const maxCapabilityResponseBytes = 4 << 20
 //go:wasmimport kumbuka_v1 call
 func hostCall(request, length, response, capacity uint32) uint32
 
-// Call transports one capability request using guest-owned buffers. The host
-// never calls a guest allocator while the Go reactor is suspended.
+// Call transports one capability request through guest-owned WASM buffers.
 func Call(method string, params, result any) error {
 	request, err := encodeCapabilityRequest(method, params)
 	if err != nil {

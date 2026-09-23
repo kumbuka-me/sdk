@@ -2,9 +2,7 @@ package api
 
 const renderPolicyFeaturePrefix = "render-policy."
 
-// ValidRenderPolicy reports whether name is a bounded public rendering-policy
-// identifier. Policies are semantic markers shared by plugins; core does not
-// attach feature-specific behavior to individual policy names.
+// ValidRenderPolicy reports whether name is a bounded public rendering-policy identifier.
 func ValidRenderPolicy(name string) bool {
 	if !validRenderPolicyLength(name) {
 		return false

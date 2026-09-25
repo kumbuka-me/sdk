@@ -240,6 +240,54 @@ type LogMessage struct {
 	Message string
 }
 
+// UserQuery describes a bounded search of the Kumbuka user directory.
+type UserQuery struct {
+	// Query matches canonical mentions and display names.
+	Query string `json:"query"`
+	// Limit bounds the number of returned users.
+	Limit int `json:"limit"`
+}
+
+// UserMention resolves one canonical or case-insensitive Kumbuka mention.
+type UserMention struct {
+	// Mention contains an @-prefixed Kumbuka username.
+	Mention string `json:"mention"`
+}
+
+// User is the plugin-safe representation of one enabled Kumbuka user.
+type User struct {
+	// ID is the stable Kumbuka user identifier.
+	ID int64 `json:"id"`
+	// Mention is the canonical @-prefixed username.
+	Mention string `json:"mention"`
+	// DisplayName is the user's human-readable name.
+	DisplayName string `json:"display_name"`
+}
+
+// NotificationInput describes one in-app notification requested by a plugin.
+type NotificationInput struct {
+	// RecipientUserID identifies the Kumbuka user who receives the notification.
+	RecipientUserID int64 `json:"recipient_user_id"`
+	// Title is the concise notification heading.
+	Title string `json:"title"`
+	// Body is optional plain-text notification detail.
+	Body string `json:"body,omitempty"`
+	// URL is an optional local Kumbuka destination.
+	URL string `json:"url,omitempty"`
+	// IdempotencyKey deduplicates retries within the calling plugin and recipient.
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+// Notification is the committed receipt returned after creating a notification.
+type Notification struct {
+	// ID is the stable notification identifier.
+	ID int64 `json:"id"`
+	// RecipientUserID identifies the notification owner.
+	RecipientUserID int64 `json:"recipient_user_id"`
+	// CreatedAt records when core committed the notification.
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // PermissionFor returns the required permission for one supported API v1 host operation.
 func PermissionFor(method string) (string, bool) {
 	switch method {
@@ -264,6 +312,10 @@ func PermissionFor(method string) (string, bool) {
 		return "storage:write", true
 	case "http.do":
 		return "network:http", true
+	case "users.search", "users.resolve-mention":
+		return "users:read", true
+	case "notifications.send":
+		return "notifications:send", true
 	case "icons.render", "log":
 		return "", true
 	default:
@@ -276,7 +328,7 @@ func ValidPermission(permission string) bool {
 	switch permission {
 	case "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read",
 		"attachments:read", "settings:read", "settings:write", "storage:read", "storage:write",
-		"network:http", "network:private", "network:insecure-tls":
+		"network:http", "network:private", "network:insecure-tls", "users:read", "notifications:send":
 		return true
 	default:
 		return false

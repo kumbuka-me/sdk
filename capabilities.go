@@ -41,6 +41,12 @@ func HTTP() HTTPClient { return NewClient(nil).HTTP() }
 // Attachments returns the host attachment capability.
 func Attachments() AttachmentClient { return NewClient(nil).Attachments() }
 
+// Users returns the plugin-safe Kumbuka user directory.
+func Users() UserClient { return NewClient(nil).Users() }
+
+// Notifications returns in-app notification operations.
+func Notifications() NotificationClient { return NewClient(nil).Notifications() }
+
 // Log sends a bounded log entry to Kumbuka.
 func Log(message string) error { return NewClient(nil).Log(message) }
 
@@ -67,6 +73,12 @@ func (c Client) HTTP() HTTPClient { return HTTPClient{client: c} }
 
 // Attachments returns attachment operations on this client.
 func (c Client) Attachments() AttachmentClient { return AttachmentClient{client: c} }
+
+// Users returns user-directory operations on this client.
+func (c Client) Users() UserClient { return UserClient{client: c} }
+
+// Notifications returns in-app notification operations on this client.
+func (c Client) Notifications() NotificationClient { return NotificationClient{client: c} }
 
 // Log records a host log message.
 func (c Client) Log(message string) error {
@@ -211,4 +223,31 @@ type AttachmentClient struct {
 // Read requests a bounded attachment byte range.
 func (a AttachmentClient) Read(request AttachmentRead) (Attachment, error) {
 	return callResult[Attachment](a.client, "attachments.read", request)
+}
+
+// UserClient provides plugin-safe Kumbuka user-directory operations.
+type UserClient struct {
+	// client carries the host capability transport.
+	client Client
+}
+
+// Search returns enabled users matching a canonical mention or display name.
+func (u UserClient) Search(query UserQuery) ([]User, error) {
+	return callResult[[]User](u.client, "users.search", query)
+}
+
+// ResolveMention resolves an @-prefixed mention to one enabled user.
+func (u UserClient) ResolveMention(mention string) (User, error) {
+	return callResult[User](u.client, "users.resolve-mention", UserMention{Mention: mention})
+}
+
+// NotificationClient creates core-owned in-app notifications.
+type NotificationClient struct {
+	// client carries the host capability transport.
+	client Client
+}
+
+// Send creates one attributed in-app notification for a Kumbuka user.
+func (n NotificationClient) Send(input NotificationInput) (Notification, error) {
+	return callResult[Notification](n.client, "notifications.send", input)
 }

@@ -6,6 +6,13 @@ import "github.com/kumbuka-me/sdk/internal/api"
 // Version is the Kumbuka plugin API version supported by this SDK.
 const Version = api.Version
 
+const (
+	// PermissionUsersRead allows plugin-safe Kumbuka user-directory lookups.
+	PermissionUsersRead = "users:read"
+	// PermissionNotificationsSend allows attributed in-app notification creation during mutations.
+	PermissionNotificationsSend = "notifications:send"
+)
+
 type (
 	// CapabilityRequest is the low-level host capability request envelope.
 	CapabilityRequest = api.CapabilityRequest
@@ -92,6 +99,16 @@ type (
 	IconRequest = api.IconRequest
 	// LogMessage carries one bounded plugin log entry.
 	LogMessage = api.LogMessage
+	// UserQuery describes a bounded user-directory search.
+	UserQuery = api.UserQuery
+	// UserMention resolves one Kumbuka mention.
+	UserMention = api.UserMention
+	// User is plugin-safe Kumbuka user identity.
+	User = api.User
+	// NotificationInput describes one in-app notification.
+	NotificationInput = api.NotificationInput
+	// Notification is the committed notification receipt.
+	Notification = api.Notification
 )
 
 // PermissionFor returns the manifest permission required for a host capability.

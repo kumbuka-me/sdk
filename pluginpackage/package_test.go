@@ -519,6 +519,27 @@ permissions:
 	}
 }
 
+func TestContentChangeModule(t *testing.T) {
+	manifest := `api_version: 1
+id: io.example.content-change
+name: Content change
+version: 1.0.0
+modules:
+  - type: content-change
+    id: assignments
+permissions:
+  - notifications:send
+`
+	pkg, err := Read(testArchive(t, manifest))
+	require.NoError(t, err)
+	require.Len(t, pkg.Manifest().Modules, 1)
+	assert.Equal(t, "content-change", pkg.Manifest().Modules[0].Type)
+	assert.True(t, pkg.Manifest().RequiresWASM())
+
+	_, err = Read(testArchive(t, strings.Replace(manifest, "    id: assignments", "    id: assignments\n    stage: postprocess", 1)))
+	require.Error(t, err)
+}
+
 func TestAdminActionModule(t *testing.T) {
 	manifest := `api_version: 1
 id: io.example.admin-action

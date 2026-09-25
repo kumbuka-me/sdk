@@ -29,6 +29,8 @@ type RenderRequest struct {
 	WidgetCommand *WidgetCommandContext `json:"widget_command,omitempty"`
 	// Export contains the current page and source for exporter invocations.
 	Export *ExportContext `json:"export,omitempty"`
+	// ContentChange contains one committed page source change for mutation hooks.
+	ContentChange *ContentChangeContext `json:"content_change,omitempty"`
 }
 
 // RenderResult returns intermediate output or an error. Markdown fragments are
@@ -59,6 +61,19 @@ type ExportContext struct {
 	Source string `json:"source"`
 	// Features contains request-scoped plugin settings and semantic policy markers.
 	// It is populated by RegisterExporter from the request envelope rather than encoded twice.
+	Features map[string]bool `json:"-"`
+}
+
+// ContentChangeContext describes canonical Markdown before and after one committed page save.
+type ContentChangeContext struct {
+	// Page contains public metadata for the committed page version.
+	Page Page `json:"page"`
+	// PreviousSource is the canonical Markdown stored before the mutation.
+	PreviousSource string `json:"previous_source"`
+	// Source is the canonical Markdown stored by the mutation.
+	Source string `json:"source"`
+	// Features contains request-scoped plugin settings and semantic policy markers.
+	// It is populated by RegisterContentChange from the request envelope rather than encoded twice.
 	Features map[string]bool `json:"-"`
 }
 

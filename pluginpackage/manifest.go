@@ -45,7 +45,7 @@ type Manifest struct {
 func (m Manifest) RequiresWASM() bool {
 	for _, module := range m.Modules {
 		switch module.Type {
-		case "renderer-extension", "macro", "code-highlighter", "widget", "exporter", "admin-action":
+		case "renderer-extension", "macro", "code-highlighter", "widget", "exporter", "admin-action", "content-change":
 			return true
 		}
 	}
@@ -330,6 +330,8 @@ func validModule(m Module) bool {
 		return validAdminActionModule(m)
 	case "content-substitution":
 		return validContentSubstitutionModule(m)
+	case "content-change":
+		return validContentChangeModule(m)
 	case "editor-completion":
 		return validEditorCompletionModule(m)
 	case "editor-insert":
@@ -347,6 +349,11 @@ func validModule(m Module) bool {
 	default:
 		return false
 	}
+}
+
+// validContentChangeModule validates one committed page-source mutation hook.
+func validContentChangeModule(module Module) bool {
+	return module.Stage == "" && module.Name == "" && module.Capability == ""
 }
 
 // validModuleFields rejects fields that are only meaningful for another module type.

@@ -98,6 +98,30 @@ func RegisterExporter(id string, export func(ExportContext) (ExportFile, error))
 	RegisterModule(id, exporterHandler(export))
 }
 
+// RegisterContentChange registers a handler for committed page Markdown changes.
+func RegisterContentChange(id string, changed func(ContentChangeContext) error) {
+	RegisterModule(id, contentChangeHandler(changed))
+}
+
+// contentChangeHandler adapts one mutation hook to the generic module handler contract.
+func contentChangeHandler(changed func(ContentChangeContext) error) Handler {
+	if changed == nil {
+		return nil
+	}
+	return func(request Request) Result {
+		if request.Stage != "content-change" || request.ContentChange == nil {
+			return Result{Error: "unsupported content change request"}
+		}
+
+		context := *request.ContentChange
+		context.Features = request.Features
+		if err := changed(context); err != nil {
+			return Failure(err)
+		}
+		return Result{}
+	}
+}
+
 // exporterHandler adapts a typed exporter to the generic module handler contract.
 func exporterHandler(export func(ExportContext) (ExportFile, error)) Handler {
 	if export == nil {

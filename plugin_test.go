@@ -48,6 +48,33 @@ func TestAdminActionDispatch(t *testing.T) {
 	require.NotEmpty(t, Dispatch(Request{APIVersion: Version, Module: "refresh", Stage: "widget"}).Error, "admin action accepted wrong stage")
 }
 
+func TestContentChangeDispatch(t *testing.T) {
+	previous := handlers
+	handlers = map[string]Handler{}
+	t.Cleanup(func() { handlers = previous })
+
+	var received ContentChangeContext
+	RegisterContentChange("assignments", func(context ContentChangeContext) error {
+		received = context
+		return nil
+	})
+	change := &ContentChangeContext{Page: Page{Slug: "guide"}, PreviousSource: "old", Source: "new"}
+	result := Dispatch(Request{
+		APIVersion:    Version,
+		Module:        "assignments",
+		Stage:         "content-change",
+		Features:      map[string]bool{"tasks.enabled": true},
+		ContentChange: change,
+	})
+
+	require.Empty(t, result.Error)
+	require.Equal(t, "guide", received.Page.Slug)
+	require.Equal(t, "old", received.PreviousSource)
+	require.Equal(t, "new", received.Source)
+	require.True(t, received.Features["tasks.enabled"])
+	require.NotEmpty(t, Dispatch(Request{APIVersion: Version, Module: "assignments", Stage: "widget"}).Error)
+}
+
 func TestWidgetDispatch(t *testing.T) {
 	previous := handlers
 	handlers = map[string]Handler{}

@@ -53,6 +53,8 @@ type (
 	WidgetCommandResult = api.WidgetCommandResult
 	// ExportContext describes one authorized page export invocation.
 	ExportContext = api.ExportContext
+	// ContentChangeContext describes one committed canonical Markdown change.
+	ContentChangeContext = api.ContentChangeContext
 	// ExportFile is one bounded file returned by an exporter plugin.
 	ExportFile = api.ExportFile
 

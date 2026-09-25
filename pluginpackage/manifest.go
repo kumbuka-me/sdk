@@ -625,7 +625,7 @@ func validSettingsModule(m Module) bool {
 
 	seen := make(map[string]bool, len(m.Fields))
 	for _, field := range m.Fields {
-		if field.Key || field.Type == "list" || !validConfigurationField(field, seen) {
+		if field.Key || !validConfigurationField(field, seen) {
 			return false
 		}
 		seen[field.ID] = true

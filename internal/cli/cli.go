@@ -46,12 +46,6 @@ func bindInitFlags(flags *tinyflags.FlagSet, version string) func() initConfig {
 	sdkVersion := flags.String("sdk-version", version, "Kumbuka SDK module version").
 		OneOfGroup("sdk-source").
 		Placeholder("VERSION")
-	flags.Validate(func() error {
-		if len(flags.Args()) != 1 {
-			return fmt.Errorf("init requires exactly one plugin name")
-		}
-		return nil
-	})
 
 	return func() initConfig {
 		name, _ := flags.Arg(0)

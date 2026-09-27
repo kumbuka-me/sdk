@@ -120,14 +120,35 @@ func writeArchive(files map[string][]byte) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// writePackage creates the destination directory and avoids rewriting identical packages.
+// writePackage atomically replaces a package only when its contents changed.
 func writePackage(destination string, archive []byte) error {
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+	directory := filepath.Dir(destination)
+	if err := os.MkdirAll(directory, 0o755); err != nil {
 		return err
 	}
+
 	previous, _ := os.ReadFile(destination)
 	if bytes.Equal(previous, archive) {
 		return nil
 	}
-	return os.WriteFile(destination, archive, 0o644)
+
+	temporary, err := os.CreateTemp(directory, "."+filepath.Base(destination)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() { _ = os.Remove(temporaryPath) }()
+
+	if err := temporary.Chmod(0o644); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if _, err := temporary.Write(archive); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporaryPath, destination)
 }

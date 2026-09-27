@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -52,6 +54,9 @@ func initialize(ctx context.Context, config initConfig, stdout, stderr io.Writer
 	}
 	files := generatedProjectFiles(config.Name, version, replacement)
 	if err := writeProjectFiles(config.Name, files); err != nil {
+		if cleanupErr := os.RemoveAll(config.Name); cleanupErr != nil {
+			return errors.Join(err, fmt.Errorf("clean incomplete project: %w", cleanupErr))
+		}
 		return err
 	}
 	if err := runGo(ctx, config.Name, stdout, stderr, "mod", "tidy"); err != nil {
@@ -81,8 +86,14 @@ func generatedProjectFiles(name, version, replacement string) map[string]string 
 
 // writeProjectFiles writes generated project files beneath one new project directory.
 func writeProjectFiles(directory string, files map[string]string) error {
-	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(directory, name), []byte(content), 0o644); err != nil {
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte(files[name]), 0o644); err != nil {
 			return fmt.Errorf("write %s: %w", name, err)
 		}
 	}

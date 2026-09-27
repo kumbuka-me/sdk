@@ -40,6 +40,7 @@ func testArchive(t *testing.T, manifest string, extras ...archiveEntry) []byte {
 	return buffer.Bytes()
 }
 
+// testArchiveWithoutWASM builds one test package without an executable guest module.
 func testArchiveWithoutWASM(t *testing.T, manifest string, extras ...archiveEntry) []byte {
 	t.Helper()
 	var buffer bytes.Buffer
@@ -660,6 +661,28 @@ permissions: []
 	cached, err := Read(data)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"light", "dark"}, cached.Manifest().Modules[0].Fields[0].Options)
+}
+
+func TestManifestNestedConfigurationFieldsAreIndependent(t *testing.T) {
+	t.Parallel()
+
+	pkg := &Package{manifest: Manifest{Modules: []Module{{
+		Fields: []ConfigurationField{{
+			ID:   "rows",
+			Type: "list",
+			Columns: []ConfigurationField{{
+				ID:      "color",
+				Type:    "select",
+				Options: []string{"red", "blue"},
+			}},
+		}},
+	}}}}
+
+	manifest := pkg.Manifest()
+	manifest.Modules[0].Fields[0].Columns[0].Options[0] = "changed"
+
+	got := pkg.Manifest().Modules[0].Fields[0].Columns[0].Options
+	assert.Equal(t, []string{"red", "blue"}, got)
 }
 
 func TestManifestToolbarSlicesAreIndependent(t *testing.T) {

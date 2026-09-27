@@ -43,26 +43,38 @@ type Package struct {
 
 // Manifest returns an independent copy of the validated package manifest.
 func (p *Package) Manifest() Manifest {
-	manifest := p.manifest
-	manifest.Modules = slices.Clone(manifest.Modules)
-	for index := range manifest.Modules {
-		manifest.Modules[index].Requires = slices.Clone(manifest.Modules[index].Requires)
-		manifest.Modules[index].AllowedGroups = slices.Clone(manifest.Modules[index].AllowedGroups)
-		manifest.Modules[index].Children = slices.Clone(manifest.Modules[index].Children)
-		manifest.Modules[index].Fields = slices.Clone(manifest.Modules[index].Fields)
-		for fieldIndex := range manifest.Modules[index].Fields {
-			field := &manifest.Modules[index].Fields[fieldIndex]
-			field.Options = slices.Clone(field.Options)
-			field.Columns = slices.Clone(field.Columns)
-			for columnIndex := range field.Columns {
-				field.Columns[columnIndex].Options = slices.Clone(field.Columns[columnIndex].Options)
-			}
-		}
-		manifest.Modules[index].Usage = slices.Clone(manifest.Modules[index].Usage)
-	}
+	return cloneManifest(p.manifest)
+}
+
+// cloneManifest deep-copies the slice-backed fields of one validated manifest.
+func cloneManifest(manifest Manifest) Manifest {
 	manifest.Requires = slices.Clone(manifest.Requires)
 	manifest.Permissions = slices.Clone(manifest.Permissions)
+	manifest.Modules = slices.Clone(manifest.Modules)
+	for index := range manifest.Modules {
+		manifest.Modules[index] = cloneModule(manifest.Modules[index])
+	}
 	return manifest
+}
+
+// cloneModule deep-copies one manifest module and its nested configuration schema.
+func cloneModule(module Module) Module {
+	module.Requires = slices.Clone(module.Requires)
+	module.AllowedGroups = slices.Clone(module.AllowedGroups)
+	module.Children = slices.Clone(module.Children)
+	module.Usage = slices.Clone(module.Usage)
+	module.Fields = cloneConfigurationFields(module.Fields)
+	return module
+}
+
+// cloneConfigurationFields deep-copies nested configuration fields, options, and list columns.
+func cloneConfigurationFields(fields []ConfigurationField) []ConfigurationField {
+	fields = slices.Clone(fields)
+	for index := range fields {
+		fields[index].Options = slices.Clone(fields[index].Options)
+		fields[index].Columns = cloneConfigurationFields(fields[index].Columns)
+	}
+	return fields
 }
 
 // WASM returns a copy of the validated guest module bytes.

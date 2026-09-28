@@ -114,6 +114,7 @@ func contentChangeHandler(changed func(ContentChangeContext) error) Handler {
 		}
 
 		context := *request.ContentChange
+		context.Locale = request.Locale
 		context.Features = request.Features
 		if err := changed(context); err != nil {
 			return Failure(err)
@@ -133,6 +134,7 @@ func exporterHandler(export func(ExportContext) (ExportFile, error)) Handler {
 		}
 
 		context := *request.Export
+		context.Locale = request.Locale
 		context.Features = request.Features
 		file, err := export(context)
 		if err != nil {
@@ -168,6 +170,7 @@ func renderWidgetRequest(request Request, render func(WidgetContext) (Result, er
 		return Result{Error: "unsupported widget request"}
 	}
 	context := *request.Widget
+	context.Locale = request.Locale
 	context.Features = request.Features
 	result, err := render(context)
 	if err != nil {
@@ -185,6 +188,7 @@ func renderWidgetCommand(
 		return Result{Error: "unsupported widget command"}
 	}
 	context := *request.WidgetCommand
+	context.Locale = request.Locale
 	context.Features = request.Features
 	result, err := command(context)
 	if err != nil {
@@ -207,6 +211,53 @@ func validWidgetCommandRequest(
 // RegisterMacro hides the parse/render transport and invocation serialization.
 func RegisterMacro[T any](id string, parse func(string) (T, bool), render func(T) (Result, error)) {
 	RegisterModule(id, macroHandler(parse, render))
+}
+
+// LocalizedMacro contains one parsed macro invocation and its request locale.
+type LocalizedMacro[T any] struct {
+	// Value is the parsed macro value.
+	Value T
+	// Locale is the canonical interface locale selected by the host.
+	Locale string
+}
+
+// RegisterLocalizedMacro registers a macro whose renderer receives the request locale.
+func RegisterLocalizedMacro[T any](id string, parse func(string) (T, bool), render func(LocalizedMacro[T]) (Result, error)) {
+	if render == nil {
+		RegisterModule(id, nil)
+		return
+	}
+	RegisterModule(id, localizedMacroHandler(parse, render))
+}
+
+// localizedMacroHandler adapts localized typed macro callbacks to module stages.
+func localizedMacroHandler[T any](parse func(string) (T, bool), render func(LocalizedMacro[T]) (Result, error)) Handler {
+	if parse == nil || render == nil {
+		return nil
+	}
+	return func(request Request) Result {
+		switch request.Stage {
+		case "parse":
+			return parseMacroRequest(request.Source, parse)
+		case "macro":
+			return renderLocalizedMacroRequest(request.Invocation, request.Locale, render)
+		default:
+			return Result{Error: "unsupported macro stage"}
+		}
+	}
+}
+
+// renderLocalizedMacroRequest decodes one invocation and supplies its request locale.
+func renderLocalizedMacroRequest[T any](invocation json.RawMessage, locale string, render func(LocalizedMacro[T]) (Result, error)) Result {
+	var value T
+	if err := json.Unmarshal(invocation, &value); err != nil {
+		return Failure(fmt.Errorf("decode macro arguments: %w", err))
+	}
+	result, err := render(LocalizedMacro[T]{Value: value, Locale: locale})
+	if err != nil {
+		return Failure(err)
+	}
+	return result
 }
 
 // macroHandler adapts typed macro parse and render callbacks to module stages.

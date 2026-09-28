@@ -11,6 +11,8 @@ const Version = 1
 type RenderRequest struct {
 	// APIVersion identifies the Kumbuka plugin wire protocol version.
 	APIVersion int `json:"api_version"`
+	// Locale is the canonical interface locale selected by the host.
+	Locale string `json:"locale,omitempty"`
 	// Module identifies the manifest module being invoked.
 	Module string `json:"module"`
 	// Stage selects the renderer or macro operation.
@@ -55,6 +57,8 @@ type RenderResult struct {
 
 // ExportContext describes one authorized page export invocation.
 type ExportContext struct {
+	// Locale is the canonical interface locale selected by the host.
+	Locale string `json:"locale,omitempty"`
 	// Page contains public metadata for the page being exported.
 	Page Page `json:"page"`
 	// Source contains the stored Markdown source for the page.
@@ -66,6 +70,8 @@ type ExportContext struct {
 
 // ContentChangeContext describes canonical Markdown before and after one committed page save.
 type ContentChangeContext struct {
+	// Locale is the canonical interface locale selected by the host.
+	Locale string `json:"locale,omitempty"`
 	// Page contains public metadata for the committed page version.
 	Page Page `json:"page"`
 	// PreviousSource is the canonical Markdown stored before the mutation.
@@ -98,6 +104,8 @@ type RenderPart struct {
 
 // WidgetContext describes the host surface and current page supplied to a widget.
 type WidgetContext struct {
+	// Locale is the canonical interface locale selected by the host.
+	Locale string `json:"locale,omitempty"`
 	// Surface identifies where the widget is rendered.
 	Surface string `json:"surface"`
 	// Page contains the current page on page-scoped surfaces.
@@ -125,6 +133,8 @@ type WidgetAction struct {
 
 // WidgetCommandContext describes one host-mediated command invocation.
 type WidgetCommandContext struct {
+	// Locale is the canonical interface locale selected by the host.
+	Locale string `json:"locale,omitempty"`
 	// Surface identifies the widget placement that emitted the command.
 	Surface string `json:"surface"`
 	// Page contains the authorized current page on page-scoped surfaces.

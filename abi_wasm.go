@@ -23,7 +23,14 @@ func allocate(size uint32) uint32 {
 	if size == 0 || size > maxWireBytes {
 		return 0
 	}
-	input = make([]byte, size)
+
+	length := int(size)
+	if cap(input) < length {
+		input = make([]byte, length)
+	} else {
+		input = input[:length]
+	}
+
 	return uint32(uintptr(unsafe.Pointer(&input[0])))
 }
 

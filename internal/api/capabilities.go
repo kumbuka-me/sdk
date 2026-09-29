@@ -160,6 +160,21 @@ type PageContent struct {
 	Slug string
 	// Markdown is the stored page source.
 	Markdown string
+	// UpdatedAt is the page version that must accompany a guarded content update.
+	UpdatedAt time.Time
+}
+
+// PageContentUpdate replaces the Markdown body of one existing page while
+// preserving its metadata. ExpectedUpdatedAt provides optimistic concurrency.
+type PageContentUpdate struct {
+	// Slug is the canonical page path.
+	Slug string
+	// Markdown is the complete replacement page source.
+	Markdown string
+	// Message describes the revision recorded by the host.
+	Message string
+	// ExpectedUpdatedAt is the page version returned by Content.
+	ExpectedUpdatedAt time.Time
 }
 
 // StorageValue carries a namespaced plugin storage key and optional value.
@@ -300,6 +315,8 @@ func PermissionFor(method string) (string, bool) {
 		return "drafts:read", true
 	case "pages.content":
 		return "pages:content", true
+	case "pages.update-content":
+		return "pages:write", true
 	case "attachments.read":
 		return "attachments:read", true
 	case "plugin.settings.read", "plugin.resources.get", "plugin.resources.list":
@@ -326,7 +343,7 @@ func PermissionFor(method string) (string, bool) {
 // ValidPermission reports whether permission is valid.
 func ValidPermission(permission string) bool {
 	switch permission {
-	case "browser:render", "pages:read", "pages:content", "activity:read", "drafts:read",
+	case "browser:render", "pages:read", "pages:content", "pages:write", "activity:read", "drafts:read",
 		"attachments:read", "settings:read", "settings:write", "storage:read", "storage:write",
 		"network:http", "network:private", "network:insecure-tls", "users:read", "notifications:send":
 		return true

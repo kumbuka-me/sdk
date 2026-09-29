@@ -212,6 +212,13 @@ func TestDashboardCapabilityPermissions(t *testing.T) {
 	require.True(t, ValidPermission("drafts:read"), "drafts permission: %q %t", permission, ok)
 }
 
+func TestPageContentUpdateCapabilityPermission(t *testing.T) {
+	permission, ok := PermissionFor("pages.update-content")
+	require.True(t, ok)
+	require.Equal(t, "pages:write", permission)
+	require.True(t, ValidPermission("pages:write"))
+}
+
 func TestRegisterWidgetRejectsNilRenderer(t *testing.T) {
 	previous := handlers
 	handlers = map[string]Handler{}

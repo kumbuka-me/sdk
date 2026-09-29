@@ -74,6 +74,8 @@ type (
 	PageRef = api.PageRef
 	// PageContent is authorized Markdown source.
 	PageContent = api.PageContent
+	// PageContentUpdate replaces one page body with optimistic concurrency.
+	PageContentUpdate = api.PageContentUpdate
 	// PageLink is one outgoing wiki-link relationship.
 	PageLink = api.PageLink
 	// PageLinks contains incoming and outgoing page links.

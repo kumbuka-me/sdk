@@ -118,6 +118,12 @@ func (p PageClient) Content(slug string) (PageContent, error) {
 	return callResult[PageContent](p.client, "pages.content", PageRef{Slug: slug})
 }
 
+// UpdateContent replaces one page's Markdown body through the host's normal
+// authorized, revisioned, optimistic-concurrency write path.
+func (p PageClient) UpdateContent(update PageContentUpdate) (PageContent, error) {
+	return callResult[PageContent](p.client, "pages.update-content", update)
+}
+
 // Links returns authorized incoming and outgoing wiki-link relationships.
 func (p PageClient) Links(slug string) (PageLinks, error) {
 	return callResult[PageLinks](p.client, "pages.links", PageRef{Slug: slug})

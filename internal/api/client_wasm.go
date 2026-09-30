@@ -6,10 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
 const maxCapabilityResponseBytes = 4 << 20
+
+var (
+	capabilityCallMu         sync.Mutex
+	capabilityResponseBuffer []byte
+)
 
 // hostCall invokes Kumbuka's imported capability function from a WASM guest.
 //
@@ -22,6 +28,12 @@ func Call(method string, params, result any) error {
 	if err != nil {
 		return err
 	}
+
+	// The response buffer is guest-owned and reused across calls. Keep the host call
+	// and decode together so concurrent plugin goroutines cannot overwrite it.
+	capabilityCallMu.Lock()
+	defer capabilityCallMu.Unlock()
+
 	response, err := callHost(request)
 	if err != nil {
 		return err
@@ -29,18 +41,20 @@ func Call(method string, params, result any) error {
 	return decodeCapabilityResponse(response, result)
 }
 
-// encodeCapabilityRequest serializes method parameters into the host request envelope.
+// encodeCapabilityRequest serializes method parameters directly into the host request envelope.
 func encodeCapabilityRequest(method string, params any) ([]byte, error) {
-	data, err := json.Marshal(params)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(CapabilityRequest{Method: method, Params: data})
+	return json.Marshal(struct {
+		Method string `json:"method"`
+		Params any    `json:"params,omitempty"`
+	}{Method: method, Params: params})
 }
 
 // callHost invokes the imported host function and returns the bounded response bytes.
 func callHost(request []byte) ([]byte, error) {
-	response := make([]byte, maxCapabilityResponseBytes)
+	if cap(capabilityResponseBuffer) < maxCapabilityResponseBytes {
+		capabilityResponseBuffer = make([]byte, maxCapabilityResponseBytes)
+	}
+	response := capabilityResponseBuffer[:maxCapabilityResponseBytes]
 	length := hostCall(
 		uint32(uintptr(unsafe.Pointer(&request[0]))),
 		uint32(len(request)),

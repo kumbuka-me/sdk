@@ -1,8 +1,6 @@
 // Package markdown provides reusable Markdown parsing helpers for Kumbuka plugins.
 package markdown
 
-import "strings"
-
 // Fence returns the complete opening backtick or tilde run, including its length.
 func Fence(line string) string {
 	line, ok := fenceLineContent(line)
@@ -18,18 +16,35 @@ func Fence(line string) string {
 
 // openingMarker returns a valid opening fence marker or an empty string.
 func openingMarker(line string) string {
-	for _, delimiter := range []string{"`", "~"} {
-		length := len(line) - len(strings.TrimLeft(line, delimiter))
-		if length >= 3 {
-			return line[:length]
-		}
+	if len(line) < 3 {
+		return ""
 	}
-	return ""
+	delimiter := line[0]
+	if delimiter != '`' && delimiter != '~' {
+		return ""
+	}
+
+	length := 1
+	for length < len(line) && line[length] == delimiter {
+		length++
+	}
+	if length < 3 {
+		return ""
+	}
+	return line[:length]
 }
 
 // validFenceInfo reports whether the opening fence accepts the trailing info string.
 func validFenceInfo(marker, info string) bool {
-	return marker[0] != '`' || !strings.ContainsRune(info, '`')
+	if marker[0] != '`' {
+		return true
+	}
+	for index := 0; index < len(info); index++ {
+		if info[index] == '`' {
+			return false
+		}
+	}
+	return true
 }
 
 // Closes reports whether line is a CommonMark-compatible closing fence for marker.
@@ -41,8 +56,22 @@ func Closes(line, marker string) bool {
 	if !ok {
 		return false
 	}
-	line = strings.TrimRight(line, " \t")
-	return strings.HasPrefix(line, marker) && strings.Trim(line, string(marker[0])) == ""
+
+	end := len(line)
+	for end > 0 && (line[end-1] == ' ' || line[end-1] == '\t') {
+		end--
+	}
+	if end < len(marker) {
+		return false
+	}
+
+	delimiter := marker[0]
+	for index := 0; index < end; index++ {
+		if line[index] != delimiter {
+			return false
+		}
+	}
+	return end >= len(marker)
 }
 
 // fenceLineContent removes at most three leading spaces and rejects deeper or tab indentation.

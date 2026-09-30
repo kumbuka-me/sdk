@@ -1,12 +1,12 @@
 package build
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/version"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 var errModuleNotFound = errors.New("go.mod not found")
@@ -29,16 +29,31 @@ func requiredToolchain(directory string, required bool) (string, error) {
 
 // moduleToolchain returns the Go toolchain selected by a module's go directive.
 func moduleToolchain(module []byte) (string, error) {
-	for _, line := range strings.Split(string(module), "\n") {
-		line, _, _ = strings.Cut(line, "//")
-		fields := strings.Fields(line)
-		if len(fields) == 0 || fields[0] != "go" {
+	for len(module) > 0 {
+		line := module
+		if newline := bytes.IndexByte(module, '\n'); newline >= 0 {
+			line = module[:newline]
+			module = module[newline+1:]
+		} else {
+			module = nil
+		}
+
+		if comment := bytes.Index(line, []byte("//")); comment >= 0 {
+			line = line[:comment]
+		}
+		fields := bytes.Fields(line)
+		if len(fields) == 0 || !bytes.Equal(fields[0], []byte("go")) {
 			continue
 		}
-		if len(fields) != 2 || !version.IsValid("go"+fields[1]) {
+		if len(fields) != 2 {
 			return "", fmt.Errorf("go.mod has an invalid go directive")
 		}
-		toolchain := "go" + fields[1]
+
+		languageVersion := string(fields[1])
+		if !version.IsValid("go" + languageVersion) {
+			return "", fmt.Errorf("go.mod has an invalid go directive")
+		}
+		toolchain := "go" + languageVersion
 		// Modern language versions omit the patch suffix required by toolchain downloads.
 		if version.Compare(toolchain, "go1.21") >= 0 && toolchain == version.Lang(toolchain) {
 			toolchain += ".0"

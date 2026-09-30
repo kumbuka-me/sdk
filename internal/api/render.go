@@ -6,8 +6,7 @@ import "encoding/json"
 
 const Version = 1
 
-// RenderRequest invokes one declared renderer module. Features contains only
-// presentation preferences, never credentials or implicit host capabilities.
+// RenderRequest invokes one declared renderer module. Features contains only presentation preferences, never credentials or implicit host capabilities.
 type RenderRequest struct {
 	// APIVersion identifies the Kumbuka plugin wire protocol version.
 	APIVersion int `json:"api_version"`
@@ -35,9 +34,7 @@ type RenderRequest struct {
 	ContentChange *ContentChangeContext `json:"content_change,omitempty"`
 }
 
-// RenderResult returns intermediate output or an error. Markdown fragments are
-// rendered by the host after the WASM call finishes; this avoids reentrant guest
-// calls for nested blocks. Postprocessors may return text fragments only.
+// RenderResult returns intermediate output or an error. Markdown fragments are rendered by the host after the WASM call finishes; this avoids reentrant guest calls for nested blocks. Postprocessors may return text fragments only.
 type RenderResult struct {
 	// Matched reports whether a macro parser recognized the candidate source.
 	Matched bool `json:"matched,omitempty"`
@@ -93,8 +90,7 @@ type ExportFile struct {
 	Data []byte `json:"data"`
 }
 
-// RenderPart is either literal intermediate output or a recursive Markdown
-// fragment. Text and Markdown must not both be set. Empty text is valid.
+// RenderPart is either literal intermediate output or a recursive Markdown fragment. Text and Markdown must not both be set. Empty text is valid.
 type RenderPart struct {
 	// Text contains literal intermediate output.
 	Text string `json:"text,omitempty"`

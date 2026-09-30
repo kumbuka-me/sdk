@@ -118,8 +118,7 @@ func (p PageClient) Content(slug string) (PageContent, error) {
 	return callResult[PageContent](p.client, "pages.content", PageRef{Slug: slug})
 }
 
-// UpdateContent replaces one page's Markdown body through the host's normal
-// authorized, revisioned, optimistic-concurrency write path.
+// UpdateContent replaces one page's Markdown body through the host's normal authorized, revisioned, optimistic-concurrency write path.
 func (p PageClient) UpdateContent(update PageContentUpdate) (PageContent, error) {
 	return callResult[PageContent](p.client, "pages.update-content", update)
 }

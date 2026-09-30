@@ -26,8 +26,7 @@ const (
 	MaxFiles         = 256
 )
 
-// Package exposes copies of validated content so callers cannot mutate the
-// package after validation. The digest covers the original ZIP bytes.
+// Package exposes copies of validated content so callers cannot mutate the package after validation. The digest covers the original ZIP bytes.
 type Package struct {
 	// manifest contains the validated plugin manifest.
 	manifest Manifest

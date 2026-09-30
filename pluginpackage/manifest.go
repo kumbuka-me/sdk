@@ -14,8 +14,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Manifest is the complete v1 package manifest. Unknown fields and unsupported
-// modules or permissions are rejected rather than silently ignored.
+// Manifest is the complete v1 package manifest. Unknown fields and unsupported modules or permissions are rejected rather than silently ignored.
 type Manifest struct {
 	// Provider is self-declared package author metadata, not a trust grant.
 	Provider string `yaml:"provider,omitempty"`
@@ -77,8 +76,7 @@ type ConfigurationField struct {
 	Columns []ConfigurationField `yaml:"columns,omitempty"`
 }
 
-// UsageRule declares a cheap source selector used to avoid invoking a module
-// for pages that cannot contain its syntax. Exactly one selector is set.
+// UsageRule declares a cheap source selector used to avoid invoking a module for pages that cannot contain its syntax. Exactly one selector is set.
 type UsageRule struct {
 	// Contains matches literal Markdown text. False positives are safe; false negatives are not.
 	Contains string `yaml:"contains,omitempty"`

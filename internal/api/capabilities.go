@@ -5,8 +5,7 @@ import (
 	"time"
 )
 
-// CapabilityRequest never carries a caller identity. Kumbuka supplies the identity
-// and grants from the executing instance, and the viewer from the render scope.
+// CapabilityRequest never carries a caller identity. Kumbuka supplies the identity and grants from the executing instance, and the viewer from the render scope.
 type CapabilityRequest struct {
 	// Method selects the host capability operation.
 	Method string `json:"method"`
@@ -164,8 +163,7 @@ type PageContent struct {
 	UpdatedAt time.Time
 }
 
-// PageContentUpdate replaces the Markdown body of one existing page while
-// preserving its metadata. ExpectedUpdatedAt provides optimistic concurrency.
+// PageContentUpdate replaces the Markdown body of one existing page while preserving its metadata. ExpectedUpdatedAt provides optimistic concurrency.
 type PageContentUpdate struct {
 	// Slug is the canonical page path.
 	Slug string
@@ -352,8 +350,7 @@ func ValidPermission(permission string) bool {
 	}
 }
 
-// AttachmentRead selects a bounded byte range; a request scope must explicitly
-// supply an authorized attachment reader before this operation is available.
+// AttachmentRead selects a bounded byte range; a request scope must explicitly supply an authorized attachment reader before this operation is available.
 type AttachmentRead struct {
 	// ID identifies the attachment in the authorized request scope.
 	ID int64

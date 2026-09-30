@@ -34,6 +34,9 @@ func validFenceInfo(marker, info string) bool {
 
 // Closes reports whether line is a CommonMark-compatible closing fence for marker.
 func Closes(line, marker string) bool {
+	if marker == "" {
+		return false
+	}
 	line, ok := fenceLineContent(line)
 	if !ok {
 		return false

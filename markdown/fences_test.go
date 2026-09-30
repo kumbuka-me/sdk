@@ -49,3 +49,8 @@ func TestFenceClosingIndentation(t *testing.T) {
 		assert.False(t, Closes("\t```", "```"))
 	})
 }
+
+func TestClosesWithoutOpeningFence(t *testing.T) {
+	assert.False(t, Closes("```", ""))
+	assert.False(t, Closes("", ""))
+}

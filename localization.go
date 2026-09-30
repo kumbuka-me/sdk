@@ -9,7 +9,9 @@ type Translations map[string]map[string]string
 
 // Localizer resolves plugin-owned messages for one host-selected locale.
 type Localizer struct {
-	locale       string
+	// locale is the supported request language, falling back to English.
+	locale string
+	// translations references plugin-owned catalogs that callers must keep immutable.
 	translations Translations
 }
 

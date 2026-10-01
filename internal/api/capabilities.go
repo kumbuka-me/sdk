@@ -25,8 +25,10 @@ type CapabilityResponse struct {
 type Page struct {
 	// ID is the stable persisted page identity.
 	ID int64
-	// URL is the host-prepared canonical application URL.
+	// URL is the host-prepared canonical browser destination for the page.
 	URL string
+	// EditURL is the host-prepared editor destination for the page.
+	EditURL string
 	// Slug is the canonical page path.
 	Slug string
 	// Title is the human-readable page title.
@@ -59,8 +61,10 @@ type Property struct {
 type PageLink struct {
 	// TargetID is the stable target identity when the destination exists.
 	TargetID int64
-	// TargetURL is the host-prepared canonical target URL when the destination exists.
+	// TargetURL is the host-prepared canonical browser destination when the target exists.
 	TargetURL string
+	// CreateURL is the host-prepared new-page destination when the target is missing.
+	CreateURL string
 	// TargetSlug is the canonical or requested link destination.
 	TargetSlug string
 	// TargetTitle is the resolved page title when the destination exists.
@@ -141,6 +145,8 @@ type RecentEdit struct {
 
 // PageDraft contains bounded private draft metadata without editor form values.
 type PageDraft struct {
+	// URL is the host-prepared editor destination for this draft.
+	URL string
 	// Key is the stable private draft identifier.
 	Key string
 	// PageID is the persisted page identifier, or zero for a new-page draft.

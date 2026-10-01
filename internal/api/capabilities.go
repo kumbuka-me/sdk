@@ -23,6 +23,10 @@ type CapabilityResponse struct {
 
 // Page is the public, persistence-independent page representation exposed to plugins.
 type Page struct {
+	// ID is the stable persisted page identity.
+	ID int64
+	// URL is the host-prepared canonical application URL.
+	URL string
 	// Slug is the canonical page path.
 	Slug string
 	// Title is the human-readable page title.
@@ -53,6 +57,10 @@ type Property struct {
 
 // PageLink describes one outgoing wiki-link relationship.
 type PageLink struct {
+	// TargetID is the stable target identity when the destination exists.
+	TargetID int64
+	// TargetURL is the host-prepared canonical target URL when the destination exists.
+	TargetURL string
 	// TargetSlug is the canonical or requested link destination.
 	TargetSlug string
 	// TargetTitle is the resolved page title when the destination exists.

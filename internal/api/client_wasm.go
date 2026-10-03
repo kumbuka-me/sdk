@@ -44,8 +44,10 @@ func Call(method string, params, result any) error {
 // encodeCapabilityRequest serializes method parameters directly into the host request envelope.
 func encodeCapabilityRequest(method string, params any) ([]byte, error) {
 	return json.Marshal(struct {
+		// Method selects the host capability operation.
 		Method string `json:"method"`
-		Params any    `json:"params,omitempty"`
+		// Params contains method-specific request parameters.
+		Params any `json:"params,omitempty"`
 	}{Method: method, Params: params})
 }
 

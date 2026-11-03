@@ -603,10 +603,19 @@ func validMarkdownSyntaxModule(m Module) bool {
 	return api.ValidSyntax(m.Syntax) && m.Stage == "" && m.Name == "" && m.Capability == ""
 }
 
+// validStylesheet reports whether a required stylesheet names a canonical CSS asset.
+func validStylesheet(name string) bool {
+	return validPath(name) && strings.HasSuffix(name, ".css")
+}
+
+// validOptionalStylesheet accepts an omitted stylesheet or a canonical CSS asset.
+func validOptionalStylesheet(name string) bool {
+	return name == "" || validStylesheet(name)
+}
+
 // validCodeHighlighterModule validates an exclusive fenced-code highlighter declaration.
 func validCodeHighlighterModule(m Module) bool {
-	validCSS := m.CSS == "" || (validPath(m.CSS) && strings.HasSuffix(m.CSS, ".css"))
-	return m.Stage == "" && m.Name == "" && m.Capability == "" && validCSS
+	return m.Stage == "" && m.Name == "" && m.Capability == "" && validOptionalStylesheet(m.CSS)
 }
 
 // validSettingsModule validates either one boolean feature toggle or one typed singleton settings group.
@@ -640,7 +649,7 @@ func validSettingsMetadata(module Module) bool {
 // validContentStyleModule validates a stylesheet scoped to rendered page content.
 func validContentStyleModule(m Module) bool {
 	return m.Stage == "" && m.Name == "" && m.Capability == "" &&
-		validPath(m.CSS) && strings.HasSuffix(m.CSS, ".css")
+		validStylesheet(m.CSS)
 }
 
 // validRenderPolicyModule validates a semantic rendering-policy contribution.
@@ -651,9 +660,8 @@ func validRenderPolicyModule(m Module) bool {
 // validBrowserModule validates fields specific to an isolated browser module.
 func validBrowserModule(m Module) bool {
 	validJavaScript := validPath(m.JavaScript) && strings.HasSuffix(m.JavaScript, ".js")
-	validCSS := m.CSS == "" || (validPath(m.CSS) && strings.HasSuffix(m.CSS, ".css"))
 
-	return m.Stage == "" && m.Name == "" && m.Capability == "" && validJavaScript && validCSS
+	return m.Stage == "" && m.Name == "" && m.Capability == "" && validJavaScript && validOptionalStylesheet(m.CSS)
 }
 
 // validRendererModule validates fields specific to a renderer pipeline declaration.

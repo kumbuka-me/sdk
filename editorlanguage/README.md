@@ -12,7 +12,9 @@ in the plugin package:
 ```
 
 `editorlanguage.Parse` is the SDK validator for this document. Identifiers are
-lowercase ASCII language tokens and each plugin can contribute up to 32 entries.
+lowercase ASCII language tokens and each plugin can contribute up to 512 entries (128 KiB total).
+Optional `aliases` (up to 32 per language) provide alternate fence names and picker search terms.
+Identifiers may contain lowercase letters, digits, underscores, dots, hyphens, plus signs and hashes.
 Unknown keys, duplicate identifiers, unsupported versions and oversized files
 are rejected. Only installed and enabled plugins contribute language choices.
 When a plugin is disabled its choices disappear; existing Markdown fences are

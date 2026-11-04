@@ -16,11 +16,11 @@ import (
 const AssetName = "code-languages.json"
 
 const (
-	maxDocumentBytes = 16 << 10
-	maxLanguages     = 32
+	maxDocumentBytes = 128 << 10
+	maxLanguages     = 512
 )
 
-var languageID = regexp.MustCompile(`^[a-z][a-z0-9_+-]{0,63}$`)
+var languageID = regexp.MustCompile(`^[a-z][a-z0-9_+#.-]{0,63}$`)
 
 // Language describes one fenced-code language offered by a plugin.
 type Language struct {
@@ -28,6 +28,8 @@ type Language struct {
 	Value string `json:"value"`
 	// Label is the human-readable name shown in editor pickers.
 	Label string `json:"label"`
+	// Aliases contains alternate fence names and picker search terms.
+	Aliases []string `json:"aliases,omitempty"`
 }
 
 // Document is the versioned declaration stored in assets/code-languages.json.
@@ -62,6 +64,16 @@ func Parse(data []byte) (Document, error) {
 			strings.TrimSpace(language.Label) != language.Label ||
 			len(language.Label) == 0 || len(language.Label) > 128 || seen[language.Value] {
 			return Document{}, fmt.Errorf("invalid or duplicate language %q", language.Value)
+		}
+		if len(language.Aliases) > 32 {
+			return Document{}, fmt.Errorf("too many aliases for language %q", language.Value)
+		}
+		aliases := make(map[string]bool)
+		for _, alias := range language.Aliases {
+			if !languageID.MatchString(alias) || aliases[alias] || alias == language.Value {
+				return Document{}, fmt.Errorf("invalid or duplicate alias for language %q", language.Value)
+			}
+			aliases[alias] = true
 		}
 		seen[language.Value] = true
 	}

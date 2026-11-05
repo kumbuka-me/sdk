@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/kumbuka-me/sdk/internal/api"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // Manifest is the complete v1 package manifest. Unknown fields and unsupported modules or permissions are rejected rather than silently ignored.

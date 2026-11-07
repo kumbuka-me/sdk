@@ -39,7 +39,7 @@ func Run(ctx context.Context, args []string, version string, stdout, stderr io.W
 
 // bindInitFlags configures init arguments and returns the resolved command configuration.
 func bindInitFlags(flags *tinyflags.FlagSet, version string) func() initConfig {
-	flags.RequirePositional(1)
+	flags.MinPositional(1)
 	sdkPath := flags.String("sdk-path", "", "Local Kumbuka SDK checkout").
 		OneOfGroup("sdk-source").
 		Placeholder("DIR")

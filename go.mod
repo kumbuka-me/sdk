@@ -3,7 +3,7 @@ module github.com/kumbuka-me/sdk
 go 1.27.0
 
 require (
-	github.com/containeroo/tinyflags v0.8.0
+	github.com/containeroo/tinyflags v0.9.0
 	github.com/stretchr/testify v1.12.1
 	go.yaml.in/yaml/v4 v4.0.0
 )

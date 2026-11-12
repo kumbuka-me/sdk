@@ -25,29 +25,3 @@ The HTTP capability is intentionally generic: provider URLs, credentials, reques
 ## License
 
 Licensed under the [Apache License 2.0](./LICENSE).
-
-## Optional static browser exports
-
-An existing `browser-module` may advertise build-time image export by bundling
-`assets/static-exports.json` (an ordinary asset, so older Kumbuka servers remain
-compatible):
-
-```json
-{
-  "version": 1,
-  "modules": [{ "id": "diagrams", "media_type": "image/svg+xml" }]
-}
-```
-
-The module's existing JavaScript must expose
-`globalThis.kumbukaPlugin.exportStatic(root, {theme})`. The host supplies a
-sandboxed DOM element containing the rendered plugin block and invokes it for
-`theme="light"` and `theme="dark"`. Return `null` to keep the normal browser
-module, or `{content, alt, alignment}` with passive SVG markup and optional
-metadata. The CLI validates the SVG, rejects external references and active
-content, and writes content-addressed assets. No shell commands or plugin-owned
-filesystem access are required. This is **optional** and does not change the
-existing Kumbuka web-rendering contract.
-
-The `staticexport` Go package defines and validates this wire contract, so a
-future host-backed artifact cache can use the same renderer output.

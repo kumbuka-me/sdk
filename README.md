@@ -33,7 +33,10 @@ An existing `browser-module` may advertise build-time image export by bundling
 compatible):
 
 ```json
-{"version":1,"modules":[{"id":"diagrams","media_type":"image/svg+xml"}]}
+{
+  "version": 1,
+  "modules": [{ "id": "diagrams", "media_type": "image/svg+xml" }]
+}
 ```
 
 The module's existing JavaScript must expose

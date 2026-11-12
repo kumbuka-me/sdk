@@ -38,6 +38,9 @@ func Storage() Values { return NewClient(nil).Storage() }
 // HTTP returns the bounded outbound HTTP client provided by Kumbuka.
 func HTTP() HTTPClient { return NewClient(nil).HTTP() }
 
+// Artifacts provides render-scoped persistence of passive generated content.
+func Artifacts() ArtifactClient { return NewClient(nil).Artifacts() }
+
 // Attachments returns the host attachment capability.
 func Attachments() AttachmentClient { return NewClient(nil).Attachments() }
 
@@ -70,6 +73,9 @@ func (c Client) Storage() Values { return Values{client: c, method: "plugin.stor
 
 // HTTP returns outbound HTTP operations on this client.
 func (c Client) HTTP() HTTPClient { return HTTPClient{client: c} }
+
+// Artifacts returns render-scoped passive artifact operations on this client.
+func (c Client) Artifacts() ArtifactClient { return ArtifactClient{client: c} }
 
 // Attachments returns attachment operations on this client.
 func (c Client) Attachments() AttachmentClient { return AttachmentClient{client: c} }
@@ -255,4 +261,20 @@ type NotificationClient struct {
 // Send creates one attributed in-app notification for a Kumbuka user.
 func (n NotificationClient) Send(input NotificationInput) (Notification, error) {
 	return callResult[Notification](n.client, "notifications.send", input)
+}
+
+// ArtifactClient sends bounded derived artifacts to the current host render scope.
+type ArtifactClient struct {
+	// client carries the host capability transport.
+	client Client
+}
+
+// Put stores one passive artifact and returns its authorized URL.
+func (a ArtifactClient) Put(input RenderedArtifactWrite) (RenderedArtifactRef, error) {
+	return callResult[RenderedArtifactRef](a.client, "artifacts.put", input)
+}
+
+// Render invokes this plugin's packaged, browser-free renderer in the trusted host runtime.
+func (a ArtifactClient) Render(input RenderedArtifactRender) (RenderedArtifactRef, error) {
+	return callResult[RenderedArtifactRef](a.client, "artifacts.render", input)
 }

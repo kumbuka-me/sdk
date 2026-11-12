@@ -51,6 +51,13 @@ type (
 	WidgetCommandContext = api.WidgetCommandContext
 	// WidgetCommandResult controls safe host navigation after a widget command.
 	WidgetCommandResult = api.WidgetCommandResult
+	// RenderedArtifactWrite requests persistence of one derived, passive render artifact.
+	RenderedArtifactWrite = api.RenderedArtifactWrite
+	// RenderedArtifactRender requests a browser-free artifact from a packaged plugin renderer.
+	RenderedArtifactRender = api.RenderedArtifactRender
+	// RenderedArtifactRef provides the host-owned URL of the stored artifact.
+	RenderedArtifactRef = api.RenderedArtifactRef
+
 	// ExportContext describes one authorized page export invocation.
 	ExportContext = api.ExportContext
 	// ContentChangeContext describes one committed canonical Markdown change.

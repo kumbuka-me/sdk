@@ -339,6 +339,8 @@ func PermissionFor(method string) (string, bool) {
 		return "users:read", true
 	case "notifications.send":
 		return "notifications:send", true
+	case "artifacts.put", "artifacts.render":
+		return "artifacts:write", true
 	case "icons.render", "log":
 		return "", true
 	default:
@@ -351,7 +353,7 @@ func ValidPermission(permission string) bool {
 	switch permission {
 	case "browser:render", "pages:read", "pages:content", "pages:write", "activity:read", "drafts:read",
 		"attachments:read", "settings:read", "settings:write", "storage:read", "storage:write",
-		"network:http", "network:private", "network:insecure-tls", "users:read", "notifications:send":
+		"network:http", "network:private", "network:insecure-tls", "users:read", "notifications:send", "artifacts:write":
 		return true
 	default:
 		return false
